@@ -2,6 +2,7 @@ uvicorn==0.30.3
 fastapi==0.111.0
 langchain==0.2.11
 langchain_community==0.2.10
+langchain_core==0.2.30
 langchain_openai==0.1.19
 langchain_huggingface==0.0.3
 sentence_transformers==3.0.1
