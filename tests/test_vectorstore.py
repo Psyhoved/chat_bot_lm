@@ -2,14 +2,18 @@ import os
 import sys
 import pytest
 import tempfile
+from pathlib import Path
+from langchain_community.vectorstores import FAISS
+
 # Добавьте корневую директорию проекта в sys.path
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
 from vectorstore import make_vectorstore, load_vectorstore
-from langchain.vectorstores import FAISS
 
+# Определение корневого каталога проекта
+PROJECT_ROOT = Path(__file__).parent.parent.absolute()
 # Пути для тестовых данных
-TEST_PDF_PATH = "../База знаний фейк.pdf"
+TEST_PDF_PATH = f"{PROJECT_ROOT}/База знаний фейк.pdf"
 VECTORSTORE_SAVE_PATH = "test_data/test_vectorstore"
 VECTORSTORE_LOAD_PATH = "test_data/test_vectorstore"
 

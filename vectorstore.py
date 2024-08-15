@@ -73,9 +73,3 @@ def load_vectorstore(vectorstore_load_path: str | Path) -> FAISS:
     embeddings = HuggingFaceEmbeddings(model_name="BAAI/bge-small-en-v1.5",
                                        encode_kwargs={"normalize_embeddings": True})
     return FAISS.load_local(vectorstore_load_path, embeddings, allow_dangerous_deserialization=True)
-
-
-if __name__ == '__main__':
-    bk_path = "База знаний фейк.pdf"
-    vec_store_save_path = "faik_FAISS_store.db"
-    make_vectorstore(bk_path, vec_store_save_path)

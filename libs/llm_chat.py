@@ -191,7 +191,7 @@ def define_promt(no_memory: bool = False) -> ChatPromptTemplate:
     return prompt
 
 
-def create_chain() -> RunnableWithMessageHistory:
+def create_chain(vec_store_path: str | Path = VEC_STORE_LOAD_PATH) -> RunnableWithMessageHistory:
     """
         Создает и возвращает цепочку обработки запросов с учетом истории чата.
 
@@ -202,7 +202,7 @@ def create_chain() -> RunnableWithMessageHistory:
     prompt = define_promt()
 
     doc_chain = create_stuff_documents_chain(llm, prompt)
-    history_aware_retriever = get_history_aware_retriever(llm)
+    history_aware_retriever = get_history_aware_retriever(llm, vec_store_path)
 
     chain = create_retrieval_chain(history_aware_retriever, doc_chain)
 
@@ -218,7 +218,7 @@ def create_chain() -> RunnableWithMessageHistory:
     return conversational_rag_chain
 
 
-def create_chain_no_memory():
+def create_chain_no_memory(vec_store_path: str | Path = VEC_STORE_LOAD_PATH):
     """
     Создает и возвращает цепочку обработки запросов без учета истории чата.
 
@@ -228,7 +228,7 @@ def create_chain_no_memory():
 
     llm = define_llm(API_KEY, API_BASE, MODEL, MAX_TOKENS, TEMPERATURE)
     prompt = define_promt(no_memory=True)
-    retriever = load_vectorstore(VEC_STORE_LOAD_PATH).as_retriever()
+    retriever = load_vectorstore(vec_store_path).as_retriever()
 
     doc_chain = create_stuff_documents_chain(llm, prompt)
     # Create a chain
