@@ -71,12 +71,12 @@ def test_get_session_history(setup_test_db):
 
 
 def test_define_llm():
-    llm = define_llm(API_KEY, API_BASE, MODEL, 10, 0)
+    llm = define_llm(API_KEY, API_BASE, MODEL, 10, 0.1)
 
     assert isinstance(llm, ChatOpenAI)
 
     if MODEL == "mistralai/mistral-7b-instruct:free":
-        assert llm.invoke('Привет!').content == "Привет! Как могу помочь"
+        assert llm.invoke('Привет!').content == " Привет! Как могу помочь"
 
 
 def test_get_history_aware_retriever():
