@@ -1,0 +1,151 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Чат-бот Жизньмарт</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #f4f4f4;
+            margin: 0;
+            padding: 20px;
+        }
+        #chat-box {
+            width: 100%;
+            max-width: 600px;
+            margin: 0 auto;
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 0 10px rgba(0,0,0,0.1);
+        }
+        #messages {
+            height: 400px;
+            overflow-y: auto;
+            margin-bottom: 20px;
+            border-bottom: 1px solid #ddd;
+        }
+        .message {
+            padding: 10px;
+            margin-bottom: 10px;
+            border-radius: 5px;
+            line-height: 1.4;
+        }
+        .message-header {
+            font-weight: bold;
+            margin-bottom: 5px;
+        }
+        .message-body {
+            padding-left: 10px;
+        }
+        label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+        }
+        #user_id, #question {
+            width: calc(100% - 110px);
+            padding: 10px;
+            margin-right: 10px;
+            margin-bottom: 10px;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+        }
+        #send-btn {
+            padding: 10px 20px;
+            background-color: #28a745;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+        #send-btn:hover {
+            background-color: #218838;
+        }
+    </style>
+</head>
+<body>
+    <div id="chat-box">
+        <h2>Чат-бот Жизньмарт</h2>
+
+        <!-- Поле для ввода user_id -->
+        <label for="user_id">Введите ваш User ID:</label>
+        <input type="text" id="user_id" placeholder="User ID">
+
+        <!-- Поле для выбора метода -->
+        <label for="method">Выберите метод:</label>
+        <select id="method">
+            <option value="ask_mistral_7b_instruct">Чат с историей</option>
+            <option value="ask_mistral_7b_instruct_no_memory">Чат без истории</option>
+            <option value="get_history">Получить историю сообщений</option>
+        </select>
+
+        <!-- Поле для ввода вопроса -->
+        <label for="question">Введите ваш вопрос:</label>
+        <input type="text" id="question" placeholder="Введите ваш вопрос...">
+        <button id="send-btn">Отправить</button>
+
+        <div id="messages" role="log" aria-live="polite"></div>
+    </div>
+
+    <script>
+        document.getElementById('send-btn').addEventListener('click', sendMessage);
+
+        async function sendMessage() {
+            const userIdInput = document.getElementById('user_id');
+            const questionInput = document.getElementById('question');
+            const methodSelect = document.getElementById('method');
+            const userId = userIdInput.value.trim();
+            const question = questionInput.value.trim();
+            const method = methodSelect.value;
+
+            // Проверка наличия user_id и (вопроса или истории)
+            if (!userId || (!question && method !== 'get_history')) {
+                alert('Пожалуйста, введите User ID и вопрос (или выберите "Получить историю сообщений").');
+                return;
+            }
+
+            addMessageToChat('Человек', question || 'Запрос на получение истории сообщений', userId);
+
+            try {
+                const response = await fetch(`/${method}`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ user_id: userId, question })
+                });
+
+                const data = await response.json();
+                addMessageToChat('Чат-бот', JSON.stringify(data.response, null, 2));
+            } catch (error) {
+                console.error('Ошибка:', error);
+                addMessageToChat('Чат-бот', 'Произошла ошибка при отправке запроса.');
+            }
+
+            questionInput.value = '';
+        }
+
+        function addMessageToChat(sender, message) {
+            const messagesContainer = document.getElementById('messages');
+            const messageDiv = document.createElement('div');
+            messageDiv.classList.add('message');
+
+            const messageHeader = document.createElement('div');
+            messageHeader.classList.add('message-header');
+            messageHeader.textContent = sender;
+
+            const messageBody = document.createElement('div');
+            messageBody.classList.add('message-body');
+            messageBody.textContent = message;
+
+            messageDiv.appendChild(messageHeader);
+            messageDiv.appendChild(messageBody);
+
+            messagesContainer.appendChild(messageDiv);
+            messagesContainer.scrollTop = messagesContainer.scrollHeight;
+        }
+    </script>
+</body>
+</html>

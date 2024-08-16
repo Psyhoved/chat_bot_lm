@@ -2,6 +2,7 @@ import os
 
 from fastapi import FastAPI, HTTPException
 from fastapi.responses import JSONResponse
+from fastapi.responses import HTMLResponse
 from pydantic import BaseModel
 from langchain_core.messages import HumanMessage, AIMessage
 
@@ -9,21 +10,22 @@ from libs.llm_chat import create_chain, check_question, create_chain_no_memory, 
 
 description = """
 ## Версии
-### 0.0.1
-- Добавлен перевод на оператора при запросе.
-- Добавлен ответ "спасибо" при завершении диалога.
 ### 0.0.2
 - Добавлена модель без учёта истории общения с пользователем (для тестов).
 ### 0.0.3
 - Добавлено сохранение истории диалогов в базу данных SQLlite.
 - Исправлен баг с неадекватным ответом на приветствие
 - Увеличено покрытия кода тестами
+### 0.0.4
+- Увеличено покрытия кода тестами
+- Настроено базовое ci/cd в github actions
+- Добавлена простая html страничка для работы с ботом
 """
 
 # Создание экземпляра FastAPI
 app = FastAPI(
     title="Чат-бот API Жизньмарт",
-    version="0.0.3",
+    version="0.0.4",
     description=description)
 
 
@@ -50,6 +52,22 @@ del bk_path, vec_store_save_path
 # инициализация чат-бота
 chain = create_chain()
 chain_no_memory = create_chain_no_memory()
+
+
+@app.get("/", response_class=HTMLResponse)
+async def serve_frontend():
+    """
+    Открываем файл index.html в режиме чтения с кодировкой utf-8
+    """
+    try:
+        with open("index.html", "r", encoding="utf-8") as file:
+            # Читаем содержимое файла
+            content = file.read()
+        # Возвращаем содержимое файла в ответе
+        return HTMLResponse(content=content)
+    except Exception as e:
+        # Обработка ошибок (например, файл не найден)
+        return HTMLResponse(content=f"Не удалось загрузить страницу\n Ошибка {e}", status_code=500)
 
 
 @app.post("/ask_mistral_7b_instruct")
