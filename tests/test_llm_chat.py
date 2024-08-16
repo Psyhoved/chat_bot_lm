@@ -2,7 +2,6 @@ import pytest
 import os
 import sys
 import tempfile
-from pathlib import Path
 
 from langchain_core.messages import HumanMessage, AIMessage
 from sqlalchemy import create_engine, MetaData
@@ -15,19 +14,32 @@ from langchain_core.runnables import RunnableBinding
 # Добавьте корневую директорию проекта в sys.path
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 from vectorstore import make_vectorstore
+from tests.test_vectorstore import create_temp_pdf
 from libs.llm_chat import (check_question,
                            get_history_aware_retriever, define_llm,
                            define_promt, create_chain, create_chain_no_memory,
-                           VEC_STORE_LOAD_PATH, API_KEY, API_BASE, MODEL,
-                           MAX_TOKENS, TEMPERATURE)
+                           API_KEY, API_BASE, MODEL, MAX_TOKENS, TEMPERATURE)
 
-# Определение корневого каталога проекта
-PROJECT_ROOT = Path(__file__).parent.parent.absolute()
-# Пути для тестовых данных
-TEST_PDF_PATH = f"{PROJECT_ROOT}/База знаний фейк.pdf"
-VEC_STORE_TEST_PATH = os.path.join(PROJECT_ROOT, 'tests',"test_vectorstore.db")
 
-make_vectorstore(TEST_PDF_PATH, VEC_STORE_TEST_PATH)
+@pytest.fixture
+def setup_vectorstore():
+    """
+    Фикстура для подготовки тестового векторного хранилища и создания временного PDF-файла.
+    """
+    with tempfile.TemporaryDirectory() as temp_dir:
+        pdf_path = os.path.join(temp_dir, "test_document.pdf")
+        vec_store_save_path = os.path.join(temp_dir, "test_vectorstore.db")
+        # Создание временного PDF-файла
+        create_temp_pdf(pdf_path)
+        # создание vectorstore
+        make_vectorstore(pdf_path, vec_store_save_path)
+
+        yield vec_store_save_path
+
+        # Удаление всех файлов в директории, если они существуют
+        for root, dirs, files in os.walk(temp_dir):
+            for file in files:
+                os.remove(os.path.join(root, file))
 
 
 @pytest.fixture(scope="function")
@@ -90,10 +102,10 @@ def test_define_llm():
         assert llm.invoke('Привет!').content == " Привет! Как могу помочь"
 
 
-def test_get_history_aware_retriever():
+def test_get_history_aware_retriever(setup_vectorstore):
     llm = define_llm(API_KEY, API_BASE, MODEL, MAX_TOKENS, TEMPERATURE)
 
-    history_aware_retriever = get_history_aware_retriever(llm, VEC_STORE_TEST_PATH)
+    history_aware_retriever = get_history_aware_retriever(llm, setup_vectorstore)
     assert isinstance(history_aware_retriever, RunnableBinding)
 
 
@@ -106,21 +118,13 @@ def test_define_promt():
     assert "chat_history" not in prompt_no_memory.input_variables
 
 
-def test_create_chain():
-    conversational_rag_chain = create_chain(VEC_STORE_TEST_PATH)
+def test_create_chain(setup_vectorstore):
+    conversational_rag_chain = create_chain(setup_vectorstore)
     assert isinstance(conversational_rag_chain, RunnableWithMessageHistory)
     assert 'get_session_history' in conversational_rag_chain.__dict__.keys()
 
 
-def test_create_chain_no_memory():
-    chain = create_chain_no_memory(VEC_STORE_TEST_PATH)
-
-    # Удаление всех файлов в директории, если они существуют
-    for root, dirs, files in os.walk(VEC_STORE_TEST_PATH):
-        for file in files:
-            os.remove(os.path.join(root, file))
-        os.rmdir(root)
-
+def test_create_chain_no_memory(setup_vectorstore):
+    chain = create_chain_no_memory(setup_vectorstore)
     assert isinstance(chain, RunnableBinding)
     assert 'get_session_history' not in chain.__dict__.keys()
-
