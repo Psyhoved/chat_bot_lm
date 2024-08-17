@@ -10,7 +10,7 @@ on:
     branches: [ "main" ]
 
 permissions:
-  contents: read
+  contents: write
 
 jobs:
   build:
@@ -52,7 +52,8 @@ jobs:
         git config --global user.email "github-actions[bot]@users.noreply.github.com"
         git add coverage.svg
         git commit -m "Update coverage badge"
-        git push
+        git push https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }} HEAD:${{ github.ref }}
 
       env:
         API_KEY: ${{ secrets.OPEN_ROUTER_KEY }}
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
