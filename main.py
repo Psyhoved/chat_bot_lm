@@ -45,6 +45,7 @@ vec_store_save_path = "faik_FAISS_store.db"
 
 if not os.path.exists(vec_store_save_path):
     from vectorstore import make_vectorstore
+
     make_vectorstore(bk_path, vec_store_save_path)
 
 del bk_path, vec_store_save_path
