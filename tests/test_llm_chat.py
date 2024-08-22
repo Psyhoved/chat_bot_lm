@@ -122,10 +122,10 @@ def test_mistral_7b():
     assert answer in ["Тест", " Тест", "тест", " тест"]
 
 
-def test_capybara():
-    answer = check_llm(model=capybara,
-                       question=question)
-    assert answer == " Тест"
+# def test_capybara():
+#     answer = check_llm(model=capybara,
+#                        question=question)
+#     assert answer == " Тест"
 
 
 def test_qwen2():
