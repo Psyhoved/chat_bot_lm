@@ -19,10 +19,10 @@ from vectorstore import load_vectorstore
 
 load_dotenv()
 
+vec_store_save_path = "FAISS_store_08_24.db"
 # Определение корневого каталога проекта
 PROJECT_ROOT = Path(__file__).parent.parent.absolute()
-VEC_STORE_LOAD_PATH = Path.joinpath(PROJECT_ROOT, "faik_FAISS_store.db")
-USER_STORY_BD_PATH = Path.joinpath(PROJECT_ROOT, 'user_story_bd.pickle')
+VEC_STORE_LOAD_PATH = Path.joinpath(PROJECT_ROOT, vec_store_save_path)
 API_KEY = os.environ.get("OPEN_ROUTER_KEY")
 API_KEY2 = os.environ.get("OPEN_ROUTER_KEY_2")
 API_BASE = "https://openrouter.ai/api/v1"
@@ -40,6 +40,7 @@ gemma2       = "google/gemma-2-9b-it:free"
 qwen2        = "qwen/qwen-2-7b-instruct:free"
 capybara     = "nousresearch/nous-capybara-7b:free"
 mythomist    = "gryphe/mythomist-7b:free"
+
 
 def check_llm(model, question, max_tokens=10, temperature=0.0):
     llm = define_llm(API_KEY, API_BASE, model, max_tokens, temperature)
@@ -76,7 +77,12 @@ def check_question(message: str) -> str:
     ]
 
     thanks_words = [
-        'спасибо', "благодарю", "спасибо за помощь", "благодарствую", "чао", "пока", "досвидания", "до свидания"
+        'спасибо', "благодарю", "спасибо за помощь", "благодарствую", "чао", "пока", "досвидания", "до свидания", 'спс',
+        'всего доброго'
+    ]
+
+    hello_words = [
+        'хай', 'привет', 'добрый день', 'добрый вечер', 'здравствуйте', 'здорова', 'доброе утро'
     ]
 
     # Приводим сообщение к нижнему регистру для унификации поиска
@@ -93,9 +99,12 @@ def check_question(message: str) -> str:
             return "оператор"
 
     # Проверяем на окончание диалога
-    for thanks_word in thanks_words:
-        if re.search(r'\b' + re.escape(thanks_word) + r'\b', message_lower):
-            return "спасибо"
+    if message_lower in thanks_words or message_lower in [word + '!' for word in thanks_words]:
+        return "спасибо"
+
+    # Проверяем на приветствие
+    if message_lower in hello_words or message_lower in [word + '!' for word in hello_words]:
+        return "привет"
 
     return message
 

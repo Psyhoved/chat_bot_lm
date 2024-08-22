@@ -7,7 +7,8 @@ from pydantic import BaseModel
 from langchain_core.messages import HumanMessage, AIMessage
 
 from libs.llm_chat import (create_chain, check_question, create_chain_no_memory, get_session_history, MODEL,
-                           llama_3_1_8b, hermes, openchat, capybara, qwen2, zephyr, phi3, gemma2, mythomist)
+                           llama_3_1_8b, hermes, openchat, capybara, qwen2, zephyr, phi3, gemma2, mythomist,
+                           vec_store_save_path)
 
 description = """
 ## Версии
@@ -22,6 +23,7 @@ description = """
 ### 0.1.0
 - Добавлены 9 llm моделей
 - Убрана модель без памяти 
+- Изменён сплитер текста на деление по символам (т.е. вопросам)
 """
 
 # Создание экземпляра FastAPI
@@ -42,8 +44,7 @@ class HistoryRequest(BaseModel):
 
 
 # проверка наличия векторстора с базой знаний
-bk_path = "База знаний фейк.pdf"
-vec_store_save_path = "faik_FAISS_store.db"
+bk_path = "База знаний Чат-Бот ЖМ 08.24.pdf"
 
 if not os.path.exists(vec_store_save_path):
     from vectorstore import make_vectorstore
@@ -67,6 +68,22 @@ chain_qwen2        = create_chain(model=qwen2)
 chain_capybara     = create_chain(model=capybara)
 chain_mythomist    = create_chain(model=mythomist)
 
+chat_start_answer      = 'Приветствую! Спешим на помощь💚 Какой у Вас вопрос?'
+chat_end_answer        = 'Всегда готовы помочь! Желаем Вам всего самого доброго! 💚'
+operator_switch_answer = 'Перевожу на оператора...'
+
+
+def fast_answer(question: str):
+    if question == 'оператор':
+        # добавить перевод на оператора в JSONResponse
+        return JSONResponse(content={"response": operator_switch_answer})
+    elif question == 'привет':
+        return JSONResponse(content={"response": chat_start_answer})
+    elif question == "спасибо":
+        # добавить код окончания диалога в JSONResponse
+        return JSONResponse(content={"response": chat_end_answer})
+    else:
+        return None
 
 @app.get("/", response_class=HTMLResponse)
 async def serve_frontend():
@@ -96,11 +113,9 @@ async def ask_mistral_7b(request: QuestionRequest):
     """
     user_id = request.user_id
     question = check_question(request.question)
-    if question == 'оператор':
-        # TODO добавить перевод на оператора
-        return JSONResponse(content={"response": 'Перевожу на оператора...'})
-    elif question in ['Спасибо', 'спасибо', 'благодарю', 'Благодарю', 'спс']:
-        return JSONResponse(content={"response": 'Всегда готовы помочь! Желаем Вам всего самого доброго! 💚'})
+
+    if fast_answer(question):
+        return fast_answer(question)
 
     # Отправка запроса модели
     try:
@@ -125,11 +140,9 @@ async def ask_llama_3_1_8b(request: QuestionRequest):
     """
     user_id = request.user_id
     question = check_question(request.question)
-    if question == 'оператор':
-        # TODO добавить перевод на оператора
-        return JSONResponse(content={"response": 'Перевожу на оператора...'})
-    elif question in ['Спасибо', 'спасибо', 'благодарю', 'Благодарю', 'спс']:
-        return JSONResponse(content={"response": 'Всегда готовы помочь! Желаем Вам всего самого доброго! 💚'})
+
+    if fast_answer(question):
+        return fast_answer(question)
 
     # Отправка запроса модели
     try:
@@ -154,11 +167,9 @@ async def ask_hermes(request: QuestionRequest):
     """
     user_id = request.user_id
     question = check_question(request.question)
-    if question == 'оператор':
-        # TODO добавить перевод на оператора
-        return JSONResponse(content={"response": 'Перевожу на оператора...'})
-    elif question in ['Спасибо', 'спасибо', 'благодарю', 'Благодарю', 'спс']:
-        return JSONResponse(content={"response": 'Всегда готовы помочь! Желаем Вам всего самого доброго! 💚'})
+
+    if fast_answer(question):
+        return fast_answer(question)
 
     # Отправка запроса модели
     try:
@@ -183,11 +194,9 @@ async def ask_openchat(request: QuestionRequest):
     """
     user_id = request.user_id
     question = check_question(request.question)
-    if question == 'оператор':
-        # TODO добавить перевод на оператора
-        return JSONResponse(content={"response": 'Перевожу на оператора...'})
-    elif question in ['Спасибо', 'спасибо', 'благодарю', 'Благодарю', 'спс']:
-        return JSONResponse(content={"response": 'Всегда готовы помочь! Желаем Вам всего самого доброго! 💚'})
+
+    if fast_answer(question):
+        return fast_answer(question)
 
     # Отправка запроса модели
     try:
@@ -212,11 +221,9 @@ async def ask_capybara(request: QuestionRequest):
     """
     user_id = request.user_id
     question = check_question(request.question)
-    if question == 'оператор':
-        # TODO добавить перевод на оператора
-        return JSONResponse(content={"response": 'Перевожу на оператора...'})
-    elif question in ['Спасибо', 'спасибо', 'благодарю', 'Благодарю', 'спс']:
-        return JSONResponse(content={"response": 'Всегда готовы помочь! Желаем Вам всего самого доброго! 💚'})
+
+    if fast_answer(question):
+        return fast_answer(question)
 
     # Отправка запроса модели
     try:
@@ -241,11 +248,9 @@ async def ask_qwen2(request: QuestionRequest):
     """
     user_id = request.user_id
     question = check_question(request.question)
-    if question == 'оператор':
-        # TODO добавить перевод на оператора
-        return JSONResponse(content={"response": 'Перевожу на оператора...'})
-    elif question in ['Спасибо', 'спасибо', 'благодарю', 'Благодарю', 'спс']:
-        return JSONResponse(content={"response": 'Всегда готовы помочь! Желаем Вам всего самого доброго! 💚'})
+
+    if fast_answer(question):
+        return fast_answer(question)
 
     # Отправка запроса модели
     try:
@@ -270,11 +275,9 @@ async def ask_zephyr(request: QuestionRequest):
     """
     user_id = request.user_id
     question = check_question(request.question)
-    if question == 'оператор':
-        # TODO добавить перевод на оператора
-        return JSONResponse(content={"response": 'Перевожу на оператора...'})
-    elif question in ['Спасибо', 'спасибо', 'благодарю', 'Благодарю', 'спс']:
-        return JSONResponse(content={"response": 'Всегда готовы помочь! Желаем Вам всего самого доброго! 💚'})
+
+    if fast_answer(question):
+        return fast_answer(question)
 
     # Отправка запроса модели
     try:
@@ -299,11 +302,9 @@ async def ask_phi3(request: QuestionRequest):
     """
     user_id = request.user_id
     question = check_question(request.question)
-    if question == 'оператор':
-        # TODO добавить перевод на оператора
-        return JSONResponse(content={"response": 'Перевожу на оператора...'})
-    elif question in ['Спасибо', 'спасибо', 'благодарю', 'Благодарю', 'спс']:
-        return JSONResponse(content={"response": 'Всегда готовы помочь! Желаем Вам всего самого доброго! 💚'})
+
+    if fast_answer(question):
+        return fast_answer(question)
 
     # Отправка запроса модели
     try:
@@ -328,11 +329,9 @@ async def ask_gemma2(request: QuestionRequest):
     """
     user_id = request.user_id
     question = check_question(request.question)
-    if question == 'оператор':
-        # TODO добавить перевод на оператора
-        return JSONResponse(content={"response": 'Перевожу на оператора...'})
-    elif question in ['Спасибо', 'спасибо', 'благодарю', 'Благодарю', 'спс']:
-        return JSONResponse(content={"response": 'Всегда готовы помочь! Желаем Вам всего самого доброго! 💚'})
+
+    if fast_answer(question):
+        return fast_answer(question)
 
     # Отправка запроса модели
     try:
@@ -357,11 +356,9 @@ async def ask_mythomist(request: QuestionRequest):
     """
     user_id = request.user_id
     question = check_question(request.question)
-    if question == 'оператор':
-        # TODO добавить перевод на оператора
-        return JSONResponse(content={"response": 'Перевожу на оператора...'})
-    elif question in ['Спасибо', 'спасибо', 'благодарю', 'Благодарю', 'спс']:
-        return JSONResponse(content={"response": 'Всегда готовы помочь! Желаем Вам всего самого доброго! 💚'})
+
+    if fast_answer(question):
+        return fast_answer(question)
 
     # Отправка запроса модели
     try:
