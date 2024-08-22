@@ -6,12 +6,11 @@ from fastapi.responses import HTMLResponse
 from pydantic import BaseModel
 from langchain_core.messages import HumanMessage, AIMessage
 
-from libs.llm_chat import create_chain, check_question, create_chain_no_memory, get_session_history
+from libs.llm_chat import (create_chain, check_question, create_chain_no_memory, get_session_history, MODEL,
+                           llama_3_1_8b, hermes, openchat, capybara, qwen2, zephyr, phi3, gemma2, mythomist)
 
 description = """
 ## Версии
-### 0.0.2
-- Добавлена модель без учёта истории общения с пользователем (для тестов).
 ### 0.0.3
 - Добавлено сохранение истории диалогов в базу данных SQLlite.
 - Исправлен баг с неадекватным ответом на приветствие
@@ -20,12 +19,15 @@ description = """
 - Увеличено покрытия кода тестами
 - Настроено базовое ci/cd в github actions
 - Добавлена простая html страничка для работы с ботом
+### 0.1.0
+- Добавлены 9 llm моделей
+- Убрана модель без памяти 
 """
 
 # Создание экземпляра FastAPI
 app = FastAPI(
     title="Чат-бот API Жизньмарт",
-    version="0.0.4",
+    version="0.1.0",
     description=description)
 
 
@@ -50,9 +52,20 @@ if not os.path.exists(vec_store_save_path):
 
 del bk_path, vec_store_save_path
 
-# инициализация чат-бота
-chain = create_chain()
+# инициализация чат-ботов
+
+chain = create_chain(model=MODEL)
 chain_no_memory = create_chain_no_memory()
+
+chain_llama_3_1_8b = create_chain(model=llama_3_1_8b)
+chain_hermes       = create_chain(model=hermes)
+chain_zephyr       = create_chain(model=zephyr)
+chain_openchat     = create_chain(model=openchat)
+chain_phi3         = create_chain(model=phi3)
+chain_gemma2       = create_chain(model=gemma2)
+chain_qwen2        = create_chain(model=qwen2)
+chain_capybara     = create_chain(model=capybara)
+chain_mythomist    = create_chain(model=mythomist)
 
 
 @app.get("/", response_class=HTMLResponse)
@@ -71,10 +84,11 @@ async def serve_frontend():
         return HTMLResponse(content=f"Не удалось загрузить страницу\n Ошибка {e}", status_code=500)
 
 
-@app.post("/ask_mistral_7b_instruct")
-async def ask_mistral_7b_instruct(request: QuestionRequest):
+@app.post("/ask_mistral_7b")
+async def ask_mistral_7b(request: QuestionRequest):
     """
-    Общение с ботом с учётом истории сообщений с пользователем. В промт идёт вся прошлая переписка.
+    Общение с ботом с учётом истории сообщений с пользователем, модель mistralai/mistral-7b-instruct:free.
+    В промт идёт вся прошлая переписка.
 
     :param request:
 
@@ -83,8 +97,9 @@ async def ask_mistral_7b_instruct(request: QuestionRequest):
     user_id = request.user_id
     question = check_question(request.question)
     if question == 'оператор':
+        # TODO добавить перевод на оператора
         return JSONResponse(content={"response": 'Перевожу на оператора...'})
-    elif question == 'спасибо':
+    elif question in ['Спасибо', 'спасибо', 'благодарю', 'Благодарю', 'спс']:
         return JSONResponse(content={"response": 'Всегда готовы помочь! Желаем Вам всего самого доброго! 💚'})
 
     # Отправка запроса модели
@@ -98,27 +113,262 @@ async def ask_mistral_7b_instruct(request: QuestionRequest):
         raise HTTPException(status_code=500, detail=str(e))
 
 
-@app.post("/ask_mistral_7b_instruct_no_memory")
-async def ask_mistral_7b_instruct_no_memory(request: QuestionRequest):
+@app.post("/ask_llama_3_1_8b")
+async def ask_llama_3_1_8b(request: QuestionRequest):
     """
-    Общение с ботом без учёта истории сообщений с пользователем. Каждый вопрос, как первый.
+    Общение с ботом с учётом истории сообщений с пользователем, модель meta-llama/llama-3.1-8b-instruct:free.
+    В промт идёт вся прошлая переписка.
 
     :param request:
 
     :return:
     """
+    user_id = request.user_id
     question = check_question(request.question)
     if question == 'оператор':
+        # TODO добавить перевод на оператора
         return JSONResponse(content={"response": 'Перевожу на оператора...'})
-    elif question == 'спасибо':
+    elif question in ['Спасибо', 'спасибо', 'благодарю', 'Благодарю', 'спс']:
         return JSONResponse(content={"response": 'Всегда готовы помочь! Желаем Вам всего самого доброго! 💚'})
 
     # Отправка запроса модели
     try:
 
-        response_content = chain_no_memory.invoke({"input": question})['answer']
+        response_content = chain_llama_3_1_8b.invoke({"input": question}, config={"configurable": {"session_id": user_id}})
 
-        return JSONResponse(content={"response": response_content})
+        return JSONResponse(content={"response": response_content['answer']})
+
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.post("/ask_hermes")
+async def ask_hermes(request: QuestionRequest):
+    """
+    Общение с ботом с учётом истории сообщений с пользователем, модель nousresearch/hermes-3-llama-3.1-405b.
+    В промт идёт вся прошлая переписка.
+
+    :param request:
+
+    :return:
+    """
+    user_id = request.user_id
+    question = check_question(request.question)
+    if question == 'оператор':
+        # TODO добавить перевод на оператора
+        return JSONResponse(content={"response": 'Перевожу на оператора...'})
+    elif question in ['Спасибо', 'спасибо', 'благодарю', 'Благодарю', 'спс']:
+        return JSONResponse(content={"response": 'Всегда готовы помочь! Желаем Вам всего самого доброго! 💚'})
+
+    # Отправка запроса модели
+    try:
+
+        response_content = chain_hermes.invoke({"input": question}, config={"configurable": {"session_id": user_id}})
+
+        return JSONResponse(content={"response": response_content['answer']})
+
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.post("/ask_openchat")
+async def ask_openchat(request: QuestionRequest):
+    """
+    Общение с ботом с учётом истории сообщений с пользователем, модель openchat/openchat-7b:free.
+    В промт идёт вся прошлая переписка.
+
+    :param request:
+
+    :return:
+    """
+    user_id = request.user_id
+    question = check_question(request.question)
+    if question == 'оператор':
+        # TODO добавить перевод на оператора
+        return JSONResponse(content={"response": 'Перевожу на оператора...'})
+    elif question in ['Спасибо', 'спасибо', 'благодарю', 'Благодарю', 'спс']:
+        return JSONResponse(content={"response": 'Всегда готовы помочь! Желаем Вам всего самого доброго! 💚'})
+
+    # Отправка запроса модели
+    try:
+
+        response_content = chain_openchat.invoke({"input": question}, config={"configurable": {"session_id": user_id}})
+
+        return JSONResponse(content={"response": response_content['answer']})
+
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.post("/ask_capybara")
+async def ask_capybara(request: QuestionRequest):
+    """
+    Общение с ботом с учётом истории сообщений с пользователем, модель nousresearch/nous-capybara-7b:free.
+    В промт идёт вся прошлая переписка.
+
+    :param request:
+
+    :return:
+    """
+    user_id = request.user_id
+    question = check_question(request.question)
+    if question == 'оператор':
+        # TODO добавить перевод на оператора
+        return JSONResponse(content={"response": 'Перевожу на оператора...'})
+    elif question in ['Спасибо', 'спасибо', 'благодарю', 'Благодарю', 'спс']:
+        return JSONResponse(content={"response": 'Всегда готовы помочь! Желаем Вам всего самого доброго! 💚'})
+
+    # Отправка запроса модели
+    try:
+
+        response_content = chain_capybara.invoke({"input": question}, config={"configurable": {"session_id": user_id}})
+
+        return JSONResponse(content={"response": response_content['answer']})
+
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.post("/ask_qwen2")
+async def ask_qwen2(request: QuestionRequest):
+    """
+    Общение с ботом с учётом истории сообщений с пользователем, модель qwen/qwen-2-7b-instruct:free.
+    В промт идёт вся прошлая переписка.
+
+    :param request:
+
+    :return:
+    """
+    user_id = request.user_id
+    question = check_question(request.question)
+    if question == 'оператор':
+        # TODO добавить перевод на оператора
+        return JSONResponse(content={"response": 'Перевожу на оператора...'})
+    elif question in ['Спасибо', 'спасибо', 'благодарю', 'Благодарю', 'спс']:
+        return JSONResponse(content={"response": 'Всегда готовы помочь! Желаем Вам всего самого доброго! 💚'})
+
+    # Отправка запроса модели
+    try:
+
+        response_content = chain_qwen2.invoke({"input": question}, config={"configurable": {"session_id": user_id}})
+
+        return JSONResponse(content={"response": response_content['answer']})
+
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.post("/ask_zephyr")
+async def ask_zephyr(request: QuestionRequest):
+    """
+    Общение с ботом с учётом истории сообщений с пользователем, модель huggingfaceh4/zephyr-7b-beta:free.
+    В промт идёт вся прошлая переписка.
+
+    :param request:
+
+    :return:
+    """
+    user_id = request.user_id
+    question = check_question(request.question)
+    if question == 'оператор':
+        # TODO добавить перевод на оператора
+        return JSONResponse(content={"response": 'Перевожу на оператора...'})
+    elif question in ['Спасибо', 'спасибо', 'благодарю', 'Благодарю', 'спс']:
+        return JSONResponse(content={"response": 'Всегда готовы помочь! Желаем Вам всего самого доброго! 💚'})
+
+    # Отправка запроса модели
+    try:
+
+        response_content = chain_zephyr.invoke({"input": question}, config={"configurable": {"session_id": user_id}})
+
+        return JSONResponse(content={"response": response_content['answer']})
+
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.post("/ask_phi3")
+async def ask_phi3(request: QuestionRequest):
+    """
+    Общение с ботом с учётом истории сообщений с пользователем, модель microsoft/phi-3-medium-128k-instruct:free.
+    В промт идёт вся прошлая переписка.
+
+    :param request:
+
+    :return:
+    """
+    user_id = request.user_id
+    question = check_question(request.question)
+    if question == 'оператор':
+        # TODO добавить перевод на оператора
+        return JSONResponse(content={"response": 'Перевожу на оператора...'})
+    elif question in ['Спасибо', 'спасибо', 'благодарю', 'Благодарю', 'спс']:
+        return JSONResponse(content={"response": 'Всегда готовы помочь! Желаем Вам всего самого доброго! 💚'})
+
+    # Отправка запроса модели
+    try:
+
+        response_content = chain_phi3.invoke({"input": question}, config={"configurable": {"session_id": user_id}})
+
+        return JSONResponse(content={"response": response_content['answer']})
+
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.post("/ask_gemma2")
+async def ask_gemma2(request: QuestionRequest):
+    """
+    Общение с ботом с учётом истории сообщений с пользователем, модель google/gemma-2-9b-it:free.
+    В промт идёт вся прошлая переписка.
+
+    :param request:
+
+    :return:
+    """
+    user_id = request.user_id
+    question = check_question(request.question)
+    if question == 'оператор':
+        # TODO добавить перевод на оператора
+        return JSONResponse(content={"response": 'Перевожу на оператора...'})
+    elif question in ['Спасибо', 'спасибо', 'благодарю', 'Благодарю', 'спс']:
+        return JSONResponse(content={"response": 'Всегда готовы помочь! Желаем Вам всего самого доброго! 💚'})
+
+    # Отправка запроса модели
+    try:
+
+        response_content = chain_gemma2.invoke({"input": question}, config={"configurable": {"session_id": user_id}})
+
+        return JSONResponse(content={"response": response_content['answer']})
+
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.post("/ask_mythomist")
+async def ask_mythomist(request: QuestionRequest):
+    """
+    Общение с ботом с учётом истории сообщений с пользователем, модель gryphe/mythomist-7b:free.
+    В промт идёт вся прошлая переписка.
+
+    :param request:
+
+    :return:
+    """
+    user_id = request.user_id
+    question = check_question(request.question)
+    if question == 'оператор':
+        # TODO добавить перевод на оператора
+        return JSONResponse(content={"response": 'Перевожу на оператора...'})
+    elif question in ['Спасибо', 'спасибо', 'благодарю', 'Благодарю', 'спс']:
+        return JSONResponse(content={"response": 'Всегда готовы помочь! Желаем Вам всего самого доброго! 💚'})
+
+    # Отправка запроса модели
+    try:
+
+        response_content = chain_mythomist.invoke({"input": question}, config={"configurable": {"session_id": user_id}})
+
+        return JSONResponse(content={"response": response_content['answer']})
 
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
