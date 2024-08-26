@@ -13,19 +13,43 @@ import os
 from dotenv import load_dotenv
 from pathlib import Path
 
+from openai import RateLimitError
+
 from vectorstore import load_vectorstore
 
 load_dotenv()
 
+vec_store_save_path = "FAISS_store_08_24.db"
 # Определение корневого каталога проекта
 PROJECT_ROOT = Path(__file__).parent.parent.absolute()
-VEC_STORE_LOAD_PATH = Path.joinpath(PROJECT_ROOT, "faik_FAISS_store.db")
-USER_STORY_BD_PATH = Path.joinpath(PROJECT_ROOT, 'user_story_bd.pickle')
+VEC_STORE_LOAD_PATH = Path.joinpath(PROJECT_ROOT, vec_store_save_path)
 API_KEY = os.environ.get("OPEN_ROUTER_KEY")
+API_KEY2 = os.environ.get("OPEN_ROUTER_KEY_2")
 API_BASE = "https://openrouter.ai/api/v1"
 MODEL = "mistralai/mistral-7b-instruct:free"
 MAX_TOKENS = 500
 TEMPERATURE = 0.5
+
+# названия моделей
+llama_3_1_8b = "meta-llama/llama-3.1-8b-instruct:free"
+hermes       = "nousresearch/hermes-3-llama-3.1-405b"
+zephyr       = "huggingfaceh4/zephyr-7b-beta:free"
+openchat     = "openchat/openchat-7b:free"
+phi3         = "microsoft/phi-3-medium-128k-instruct:free"
+gemma2       = "google/gemma-2-9b-it:free"
+qwen2        = "qwen/qwen-2-7b-instruct:free"
+capybara     = "nousresearch/nous-capybara-7b:free"
+mythomist    = "gryphe/mythomist-7b:free"
+
+
+def check_llm(model, question, max_tokens=10, temperature=0.0):
+    llm = define_llm(API_KEY, API_BASE, model, max_tokens, temperature)
+    try:
+        answer = llm.invoke(question).content
+    except RateLimitError:
+        llm = define_llm(API_KEY2, API_BASE, model, 10, 0.0)
+        answer = llm.invoke(question).content
+    return answer
 
 
 def check_question(message: str) -> str:
@@ -53,7 +77,12 @@ def check_question(message: str) -> str:
     ]
 
     thanks_words = [
-        'спасибо', "благодарю", "спасибо за помощь", "благодарствую", "чао", "пока", "досвидания", "до свидания"
+        'спасибо', "благодарю", "спасибо за помощь", "благодарствую", "чао", "пока", "досвидания", "до свидания", 'спс',
+        'всего доброго'
+    ]
+
+    hello_words = [
+        'хай', 'привет', 'добрый день', 'добрый вечер', 'здравствуйте', 'здорова', 'доброе утро'
     ]
 
     # Приводим сообщение к нижнему регистру для унификации поиска
@@ -70,9 +99,12 @@ def check_question(message: str) -> str:
             return "оператор"
 
     # Проверяем на окончание диалога
-    for thanks_word in thanks_words:
-        if re.search(r'\b' + re.escape(thanks_word) + r'\b', message_lower):
-            return "спасибо"
+    if message_lower in thanks_words or message_lower in [word + '!' for word in thanks_words]:
+        return "спасибо"
+
+    # Проверяем на приветствие
+    if message_lower in hello_words or message_lower in [word + '!' for word in hello_words]:
+        return "привет"
 
     return message
 
@@ -191,14 +223,14 @@ def define_promt(no_memory: bool = False) -> ChatPromptTemplate:
     return prompt
 
 
-def create_chain(vec_store_path: str | Path = VEC_STORE_LOAD_PATH) -> RunnableWithMessageHistory:
+def create_chain(vec_store_path: str | Path = VEC_STORE_LOAD_PATH, model: str = MODEL) -> RunnableWithMessageHistory:
     """
         Создает и возвращает цепочку обработки запросов с учетом истории чата.
 
     Returns:
         RunnableWithMessageHistory: Цепочка обработки запросов с учетом истории чата.
     """
-    llm = define_llm(API_KEY, API_BASE, MODEL, MAX_TOKENS, TEMPERATURE)
+    llm = define_llm(API_KEY, API_BASE, model, MAX_TOKENS, TEMPERATURE)
     prompt = define_promt()
 
     doc_chain = create_stuff_documents_chain(llm, prompt)

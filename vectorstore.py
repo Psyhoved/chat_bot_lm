@@ -1,8 +1,26 @@
 from langchain_community.document_loaders import PyPDFLoader
-from langchain.text_splitter import RecursiveCharacterTextSplitter
 from langchain_huggingface import HuggingFaceEmbeddings
 from langchain_community.vectorstores import FAISS
+from langchain.text_splitter import TextSplitter
+from langchain.docstore.document import Document
+
 from pathlib import Path
+
+
+class QAChunkSplitter(TextSplitter):
+    def split_text(self, documents: list[Document]) -> list[Document]:
+        chunks = []
+        for doc in documents:
+            text = doc.page_content
+            # Разбиваем текст на блоки вопросов и ответов
+            qa_pairs = text.split("~")
+
+            # Убираем пустые строки и сохраняем только непустые пары
+            for pair in qa_pairs:
+                if pair.strip():
+                    chunks.append(pair.strip())
+        chunks = [Document(page_content=chunk) for chunk in chunks]
+        return chunks
 
 
 def make_vectorstore(base_knowledge_path: str | Path, vectorstore_save_path: str | Path) -> None:
@@ -34,7 +52,8 @@ def make_vectorstore(base_knowledge_path: str | Path, vectorstore_save_path: str
     documents = PyPDFLoader(base_knowledge_path).load()
 
     # Split text
-    text = RecursiveCharacterTextSplitter().split_documents(documents)
+    # Создаем объект кастомного сплиттера и разбиваем текст на чанки
+    text = QAChunkSplitter().split_text(documents)
 
     # Load embedding model
     embeddings = HuggingFaceEmbeddings(model_name="BAAI/bge-small-en-v1.5",

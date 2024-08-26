@@ -11,6 +11,8 @@ from langchain_core.runnables.history import RunnableWithMessageHistory
 from langchain_community.chat_message_histories import SQLChatMessageHistory
 from langchain_core.runnables import RunnableBinding
 
+# from main import llama_3_1_8b, hermes, openchat, capybara, qwen2, zephyr, phi3, gemma2, mythomist
+
 # Добавьте корневую директорию проекта в sys.path
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 from vectorstore import make_vectorstore
@@ -18,8 +20,11 @@ from tests.test_vectorstore import create_temp_pdf
 from libs.llm_chat import (check_question,
                            get_history_aware_retriever, define_llm,
                            define_promt, create_chain, create_chain_no_memory,
-                           API_KEY, API_BASE, MODEL, MAX_TOKENS, TEMPERATURE)
+                           API_KEY, API_BASE, MODEL, MAX_TOKENS, TEMPERATURE, check_llm,
+                           llama_3_1_8b, hermes, openchat, capybara, qwen2, zephyr, phi3, gemma2, mythomist)
 
+question = 'Напиши слово: Тест'
+question_2 = 'Напиши слово: "Тест". Напиши только одно слово на русском языке'
 
 @pytest.fixture
 def setup_vectorstore():
@@ -92,15 +97,69 @@ def test_get_session_history(setup_test_db):
     assert messages[0].content == 'Test message 1'
     assert messages[1].content == 'Test message 2'
 
+# Проверка работоспособности моделей
+def test_llama_3_1_8b():
+    answer = check_llm(model=llama_3_1_8b,
+                       question=question)
+    assert answer == "Тест."
+
+
+def test_hermes():
+    answer = check_llm(model=hermes,
+                       question=question)
+    assert answer == "Тест"
+
+
+def test_openchat():
+    answer = check_llm(model=openchat,
+                       question=question)
+    assert answer == "Тест"
+
+
+def test_mistral_7b():
+    answer = check_llm(model=MODEL,
+                       question=question, temperature=0.01)
+    assert answer in ["Тест", " Тест", "тест", " тест"]
+
+
+# def test_capybara():
+#     answer = check_llm(model=capybara,
+#                        question=question)
+#     assert answer == " Тест"
+
+
+def test_qwen2():
+    answer = check_llm(model=qwen2,
+                       question=question)
+    assert answer == "Тест"
+
+
+def test_zephyr():
+    answer = check_llm(model=zephyr,
+                       question=question_2, temperature=0.01)
+    assert answer == "Тест"
+
+
+def test_phi3():
+    answer = check_llm(model=phi3,
+                       question=question_2)
+    assert answer in [" Тест", " тест"]
+
+
+def test_gemma2():
+    answer = check_llm(model=gemma2,
+                       question=question_2)
+    assert answer == "\n\nТест \n"
+
+def test_mythomist():
+    answer = check_llm(model=mythomist,
+                       question='Привет!')
+
+    assert answer == " Привет, как дела? Готовы"
 
 def test_define_llm():
-    llm = define_llm(API_KEY, API_BASE, MODEL, 10, 0.1)
-
+    llm = define_llm(API_KEY, API_BASE, MODEL, 5, 0.0)
     assert isinstance(llm, ChatOpenAI)
-
-    if MODEL == "mistralai/mistral-7b-instruct:free":
-        assert llm.invoke('Привет!').content == " Привет! Как могу помочь"
-
 
 def test_get_history_aware_retriever(setup_vectorstore):
     llm = define_llm(API_KEY, API_BASE, MODEL, MAX_TOKENS, TEMPERATURE)
@@ -119,12 +178,12 @@ def test_define_promt():
 
 
 def test_create_chain(setup_vectorstore):
-    conversational_rag_chain = create_chain(setup_vectorstore)
+    conversational_rag_chain = create_chain(vec_store_path=setup_vectorstore)
     assert isinstance(conversational_rag_chain, RunnableWithMessageHistory)
     assert 'get_session_history' in conversational_rag_chain.__dict__.keys()
 
 
 def test_create_chain_no_memory(setup_vectorstore):
-    chain = create_chain_no_memory(setup_vectorstore)
+    chain = create_chain_no_memory(vec_store_path=setup_vectorstore)
     assert isinstance(chain, RunnableBinding)
     assert 'get_session_history' not in chain.__dict__.keys()
