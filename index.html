@@ -75,7 +75,6 @@
             <option value="ask_llama_3_1_8b">LLaMA 3.1 8B</option>
             <option value="ask_hermes">Hermes 3 LLaMA 3.1</option>
             <option value="ask_openchat">OpenChat 7B</option>
-            <option value="ask_capybara">Capybara 7B</option>
             <option value="ask_qwen2">Qwen 2 7B</option>
             <option value="ask_zephyr">Zephyr 7B</option>
             <option value="ask_phi3">Phi 3 Medium</option>
@@ -119,6 +118,12 @@
                     },
                     body: JSON.stringify({ user_id: userId, question })
                 });
+
+                if (!response.ok) {
+                    // Обработка ошибки с сервера
+                    const errorText = await response.text(); // Получаем текст ошибки с сервера
+                    throw new Error(errorText || `Ошибка ${response.status}: ${response.statusText}`);
+                }
 
                 const data = await response.json();
                 addMessageToChat('Чат-бот', JSON.stringify(data.response, null, 2));
