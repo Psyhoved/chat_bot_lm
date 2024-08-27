@@ -1,19 +1,18 @@
+import re
+import os
+from dotenv import load_dotenv
+from pathlib import Path
+import psycopg
+from openai import RateLimitError
+
 from langchain_core.runnables import RunnableBinding
 from langchain_openai import ChatOpenAI
 from langchain.chains.combine_documents import create_stuff_documents_chain
 from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
 from langchain.chains import create_retrieval_chain, create_history_aware_retriever
-
 from langchain_core.chat_history import BaseChatMessageHistory
 from langchain_core.runnables.history import RunnableWithMessageHistory
-from langchain_community.chat_message_histories import SQLChatMessageHistory
-
-import re
-import os
-from dotenv import load_dotenv
-from pathlib import Path
-
-from openai import RateLimitError
+from langchain_postgres import PostgresChatMessageHistory
 
 from vectorstore import load_vectorstore
 
@@ -29,6 +28,14 @@ API_BASE = "https://openrouter.ai/api/v1"
 MODEL = "mistralai/mistral-7b-instruct:free"
 MAX_TOKENS = 500
 TEMPERATURE = 0.5
+
+PSQL_USERNAME = os.environ.get("PSQL_USERNAME")
+PSQL_PASSWORD = os.environ.get("PSQL_PASSWORD")
+PGSQL_HOST = os.environ.get("PGSQL_HOST")
+PGSQL_DATABASE = os.environ.get("PGSQL_DATABASE")
+CONN_STR2BD = f"dbname={PGSQL_DATABASE} user={PSQL_USERNAME} password={PSQL_PASSWORD} host={PGSQL_HOST}"
+TABLE='chat_history'
+sync_connection = psycopg.connect(CONN_STR2BD)
 
 # названия моделей
 llama_3_1_8b = "meta-llama/llama-3.1-8b-instruct:free"
@@ -109,19 +116,19 @@ def check_question(message: str) -> str:
     return message
 
 
-def get_session_history(session_id: str, conn_str2db: str = "sqlite:///memory.db") -> BaseChatMessageHistory:
+def get_session_history(session_id: str) -> BaseChatMessageHistory:
     """
     Возвращает историю сообщений для заданной сессии.
 
     Args:
         session_id (str): Идентификатор сессии.
-        conn_str2db (str, optional): Строка подключения к базе данных. По умолчанию "sqlite:///memory.db".
 
     Returns:
         BaseChatMessageHistory: Объект истории сообщений чата.
     """
-
-    return SQLChatMessageHistory(session_id, conn_str2db)
+    return PostgresChatMessageHistory(table_name=TABLE,
+                                      session_id=session_id,
+                                      sync_connection=CONN_STR2BD)
 
 
 def get_history_aware_retriever(llm: ChatOpenAI, vec_store_path: str | Path = VEC_STORE_LOAD_PATH) -> RunnableBinding:
