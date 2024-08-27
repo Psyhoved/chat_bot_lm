@@ -209,33 +209,6 @@ async def ask_openchat(request: QuestionRequest):
         raise HTTPException(status_code=500, detail=str(e))
 
 
-# @app.post("/ask_capybara")
-# async def ask_capybara(request: QuestionRequest):
-#     """
-#     Общение с ботом с учётом истории сообщений с пользователем, модель nousresearch/nous-capybara-7b:free.
-#     В промт идёт вся прошлая переписка.
-#
-#     :param request:
-#
-#     :return:
-#     """
-#     user_id = request.user_id
-#     question = check_question(request.question)
-#
-#     if fast_answer(question):
-#         return fast_answer(question)
-#
-#     # Отправка запроса модели
-#     try:
-#
-#         response_content = chain_capybara.invoke({"input": question}, config={"configurable": {"session_id": user_id}})
-#
-#         return JSONResponse(content={"response": response_content['answer']})
-#
-#     except Exception as e:
-#         raise HTTPException(status_code=500, detail=str(e))
-
-
 @app.post("/ask_qwen2")
 async def ask_qwen2(request: QuestionRequest):
     """
@@ -378,7 +351,7 @@ async def get_history(request: HistoryRequest):
 
     # Преобразование сообщений в список словарей
     messages = []
-    for message in session_history.get_messages():
+    for message in session_history.messages:
         if isinstance(message, HumanMessage):
             messages.append({"Human": message.content})
         elif isinstance(message, AIMessage):

@@ -11,8 +11,6 @@ from langchain_core.runnables.history import RunnableWithMessageHistory
 from langchain_community.chat_message_histories import SQLChatMessageHistory
 from langchain_core.runnables import RunnableBinding
 
-# from main import llama_3_1_8b, hermes, openchat, capybara, qwen2, zephyr, phi3, gemma2, mythomist
-
 # Добавьте корневую директорию проекта в sys.path
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 from vectorstore import make_vectorstore
@@ -25,6 +23,8 @@ from libs.llm_chat import (check_question,
 
 question = 'Напиши слово: Тест'
 question_2 = 'Напиши слово: "Тест". Напиши только одно слово на русском языке'
+
+# TODO переписать фикстуры под постгресс
 
 @pytest.fixture
 def setup_vectorstore():
@@ -120,12 +120,6 @@ def test_mistral_7b():
     answer = check_llm(model=MODEL,
                        question=question, temperature=0.01)
     assert answer in ["Тест", " Тест", "тест", " тест"]
-
-
-# def test_capybara():
-#     answer = check_llm(model=capybara,
-#                        question=question)
-#     assert answer == " Тест"
 
 
 def test_qwen2():
