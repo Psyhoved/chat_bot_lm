@@ -1,3 +1,5 @@
+import uuid
+
 import pytest
 import os
 import sys
@@ -8,7 +10,7 @@ from sqlalchemy import create_engine, MetaData
 from langchain_openai import ChatOpenAI
 from langchain_core.prompts import ChatPromptTemplate
 from langchain_core.runnables.history import RunnableWithMessageHistory
-from langchain_community.chat_message_histories import SQLChatMessageHistory
+from langchain_postgres import PostgresChatMessageHistory
 from langchain_core.runnables import RunnableBinding
 
 # Добавьте корневую директорию проекта в sys.path
@@ -19,12 +21,13 @@ from libs.llm_chat import (check_question,
                            get_history_aware_retriever, define_llm,
                            define_promt, create_chain, create_chain_no_memory,
                            API_KEY, API_BASE, MODEL, MAX_TOKENS, TEMPERATURE, check_llm,
-                           llama_3_1_8b, hermes, openchat, capybara, qwen2, zephyr, phi3, gemma2, mythomist)
+                           llama_3_1_8b, hermes, openchat, qwen2, zephyr, phi3, gemma2, mythomist,
+                           create_table, sync_connection, drop_table)
 
 question = 'Напиши слово: Тест'
 question_2 = 'Напиши слово: "Тест". Напиши только одно слово на русском языке'
+table_name = 'test_table'
 
-# TODO переписать фикстуры под постгресс
 
 @pytest.fixture
 def setup_vectorstore():
@@ -49,26 +52,28 @@ def setup_vectorstore():
 
 @pytest.fixture(scope="function")
 def setup_test_db():
-    # Создаем временную базу данных в файле
-    test_db_path = 'sqlite:///test_memory.db'
-    engine = create_engine(test_db_path)
-    metadata = MetaData()
+    # создаём тестовую таблицу
+    create_table(table_name)
 
-    metadata.create_all(engine)
+    session_id = str(uuid.uuid4())
 
-    # Создаем объект SQLChatMessageHistory и заполняем его тестовыми данными
-    message_history = SQLChatMessageHistory(session_id='test_session', connection=engine)
-    message_history.add_message(HumanMessage("Test message 1"))
-    message_history.add_message(AIMessage("Test message 2"))
+    # Initialize the chat history manager
+    chat_history = PostgresChatMessageHistory(
+        table_name,
+        session_id,
+        sync_connection=sync_connection
+    )
 
-    yield engine
+    # Add messages to the chat history
+    chat_history.add_messages([
+        AIMessage(content="Test message 1"),
+        HumanMessage(content="Test message 2"),
+    ])
 
-    # Закрываем соединение после завершения теста
-    engine.dispose()
+    yield chat_history
 
-    # Удаляем тестовую базу данных
-    if os.path.exists('test_memory.db'):
-        os.remove('test_memory.db')
+    # удаляем тестовую таблицу
+    drop_table(table_name)
 
 
 def test_check_question():
@@ -79,19 +84,14 @@ def test_check_question():
 
 
 def test_get_session_history(setup_test_db):
-    session_id = "test_session"
-    engine = setup_test_db
+    chat_history = setup_test_db
 
-    # Используем объект engine вместо строки подключения
-    history = SQLChatMessageHistory(session_id=session_id, connection=engine)
-
-    # Проверяем, что объект history является экземпляром SQLChatMessageHistory
-    assert isinstance(history, SQLChatMessageHistory)
-    assert history.session_id == session_id
+    # Проверяем, что объект history является экземпляром PostgresChatMessageHistory
+    assert isinstance(chat_history, PostgresChatMessageHistory)
+    assert chat_history._table_name == table_name
 
     # Получаем сообщения из истории
-    messages = history.get_messages()
-
+    messages = chat_history.messages
     # Проверяем, что сообщения соответствуют ожидаемым значениям
     assert len(messages) == 2
     assert messages[0].content == 'Test message 1'
