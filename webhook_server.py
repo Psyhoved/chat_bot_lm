@@ -22,7 +22,7 @@ def image_exists(image_name):
 async def webhook(request: Request):
     # Команда для обновления кода и пересборки Docker-контейнера
     os.chdir('/root/chat_bot_lm')
-    # TODO Добавить вход в скрин 264577
+
     # Выполнение команд
     subprocess.run(['git', 'pull'])
     subprocess.run(['docker', 'build', '-t', f'{CONTAINER_NAME}_image', '.'])
