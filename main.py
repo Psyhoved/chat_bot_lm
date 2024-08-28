@@ -6,7 +6,7 @@ from fastapi.responses import HTMLResponse
 from pydantic import BaseModel
 from langchain_core.messages import HumanMessage, AIMessage
 
-from libs.llm_chat import (create_chain, check_question, create_chain_no_memory, get_session_history, MODEL,
+from libs.llm_chat import (create_chain, check_question, get_session_history, MODEL,
                            llama_3_1_8b, hermes, openchat, capybara, qwen2, zephyr, phi3, gemma2, mythomist,
                            vec_store_save_path)
 
@@ -56,7 +56,6 @@ del bk_path, vec_store_save_path
 # инициализация чат-ботов
 
 chain = create_chain(model=MODEL)
-chain_no_memory = create_chain_no_memory()
 
 chain_llama_3_1_8b = create_chain(model=llama_3_1_8b)
 chain_hermes       = create_chain(model=hermes)

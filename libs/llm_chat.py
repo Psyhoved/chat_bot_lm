@@ -49,6 +49,15 @@ capybara     = "nousresearch/nous-capybara-7b:free"
 mythomist    = "gryphe/mythomist-7b:free"
 
 
+def create_table(table_name) -> None:
+    # запускать только один раз
+    PostgresChatMessageHistory.create_tables(sync_connection, table_name)
+
+
+def drop_table(table_name) -> None:
+    PostgresChatMessageHistory.drop_table(sync_connection, table_name)
+
+
 def check_llm(model, question, max_tokens=10, temperature=0.0):
     llm = define_llm(API_KEY, API_BASE, model, max_tokens, temperature)
     try:
@@ -126,9 +135,9 @@ def get_session_history(session_id: str) -> BaseChatMessageHistory:
     Returns:
         BaseChatMessageHistory: Объект истории сообщений чата.
     """
-    return PostgresChatMessageHistory(table_name=TABLE,
-                                      session_id=session_id,
-                                      sync_connection=CONN_STR2BD)
+    return PostgresChatMessageHistory(TABLE,
+                                      session_id,
+                                      sync_connection=sync_connection)
 
 
 def get_history_aware_retriever(llm: ChatOpenAI, vec_store_path: str | Path = VEC_STORE_LOAD_PATH) -> RunnableBinding:
@@ -188,7 +197,7 @@ def define_llm(api_key: str, api_base: str, model: str, max_tokens: int, tempera
     return llm
 
 
-def define_promt(no_memory: bool = False) -> ChatPromptTemplate:
+def define_promt() -> ChatPromptTemplate:
     """
     Определяет и возвращает системный промт.
 
@@ -211,21 +220,13 @@ def define_promt(no_memory: bool = False) -> ChatPromptTemplate:
     """
     # Если клиент доволен ответом на вопрос, например, говорит "спасибо", скажи "спасибо" и попрощайся.
 
-    if no_memory:
-        prompt = ChatPromptTemplate.from_messages(
-            [
-                ("system", system_prompt),
-                ("human", "{input}"),
-            ]
-        )
-    else:
-        prompt = ChatPromptTemplate.from_messages(
-            [
-                ("system", system_prompt),
-                MessagesPlaceholder("chat_history"),
-                ("human", "{input}"),
-            ]
-        )
+    prompt = ChatPromptTemplate.from_messages(
+        [
+            ("system", system_prompt),
+            MessagesPlaceholder("chat_history"),
+            ("human", "{input}"),
+        ]
+    )
 
     return prompt
 
@@ -255,22 +256,3 @@ def create_chain(vec_store_path: str | Path = VEC_STORE_LOAD_PATH, model: str = 
     )
 
     return conversational_rag_chain
-
-
-def create_chain_no_memory(vec_store_path: str | Path = VEC_STORE_LOAD_PATH):
-    """
-    Создает и возвращает цепочку обработки запросов без учета истории чата.
-
-    Returns:
-        RetrievalChain: Цепочка обработки запросов без учета истории чата.
-    """
-
-    llm = define_llm(API_KEY, API_BASE, MODEL, MAX_TOKENS, TEMPERATURE)
-    prompt = define_promt(no_memory=True)
-    retriever = load_vectorstore(vec_store_path).as_retriever()
-
-    doc_chain = create_stuff_documents_chain(llm, prompt)
-    # Create a chain
-    chain = create_retrieval_chain(retriever, doc_chain)
-
-    return chain
