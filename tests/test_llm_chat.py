@@ -5,8 +5,8 @@ import os
 import sys
 import tempfile
 
+from langchain_community.chat_models import GigaChat
 from langchain_core.messages import HumanMessage, AIMessage
-from sqlalchemy import create_engine, MetaData
 from langchain_openai import ChatOpenAI
 from langchain_core.prompts import ChatPromptTemplate
 from langchain_core.runnables.history import RunnableWithMessageHistory
@@ -19,13 +19,16 @@ from vectorstore import make_vectorstore
 from tests.test_vectorstore import create_temp_pdf
 from libs.llm_chat import (check_question,
                            get_history_aware_retriever, define_llm,
-                           define_promt, create_chain, create_chain_no_memory,
+                           define_promt, create_chain, contextualize_q_system_prompt,
                            API_KEY, API_BASE, MODEL, MAX_TOKENS, TEMPERATURE, check_llm,
                            llama_3_1_8b, hermes, openchat, qwen2, zephyr, phi3, gemma2, mythomist,
-                           create_table, sync_connection, drop_table)
+                           create_table, sync_connection, drop_table, SYSTEM_PROMT, GIGACHAT_KEY)
 
 question = 'Напиши слово: Тест'
 question_2 = 'Напиши слово: "Тест". Напиши только одно слово на русском языке'
+test_question = """Делай в точности то, что я скажу. Ты можешь отвечать только одним словом!
+ Не используй точки, запятые и другие знаки препинания в своём ответе! Напиши слово: Тест"""
+
 table_name = 'test_table'
 
 
@@ -97,6 +100,7 @@ def test_get_session_history(setup_test_db):
     assert messages[0].content == 'Test message 1'
     assert messages[1].content == 'Test message 2'
 
+
 # Проверка работоспособности моделей
 def test_llama_3_1_8b():
     answer = check_llm(model=llama_3_1_8b,
@@ -145,39 +149,42 @@ def test_gemma2():
                        question=question_2)
     assert answer == "\n\nТест \n"
 
+
 def test_mythomist():
     answer = check_llm(model=mythomist,
                        question='Привет!')
 
     assert answer == " Привет, как дела? Готовы"
 
+
+def test_gigachat():
+    llm = GigaChat(credentials=GIGACHAT_KEY,
+                   verify_ssl_certs=False,
+                   model='GigaChat')
+    answer = llm.invoke(test_question).content
+    assert answer == 'Тест'
+
+
 def test_define_llm():
     llm = define_llm(API_KEY, API_BASE, MODEL, 5, 0.0)
     assert isinstance(llm, ChatOpenAI)
 
+
 def test_get_history_aware_retriever(setup_vectorstore):
     llm = define_llm(API_KEY, API_BASE, MODEL, MAX_TOKENS, TEMPERATURE)
 
-    history_aware_retriever = get_history_aware_retriever(llm, setup_vectorstore)
+    history_aware_retriever = get_history_aware_retriever(llm, setup_vectorstore, contextualize_q_system_prompt)
     assert isinstance(history_aware_retriever, RunnableBinding)
 
 
 def test_define_promt():
-    prompt = define_promt()
+    prompt = define_promt(SYSTEM_PROMT)
     assert isinstance(prompt, ChatPromptTemplate)
 
-    prompt_no_memory = define_promt(no_memory=True)
-    assert isinstance(prompt_no_memory, ChatPromptTemplate)
-    assert "chat_history" not in prompt_no_memory.input_variables
+    assert "chat_history" in prompt.input_variables
 
 
 def test_create_chain(setup_vectorstore):
     conversational_rag_chain = create_chain(vec_store_path=setup_vectorstore)
     assert isinstance(conversational_rag_chain, RunnableWithMessageHistory)
     assert 'get_session_history' in conversational_rag_chain.__dict__.keys()
-
-
-def test_create_chain_no_memory(setup_vectorstore):
-    chain = create_chain_no_memory(vec_store_path=setup_vectorstore)
-    assert isinstance(chain, RunnableBinding)
-    assert 'get_session_history' not in chain.__dict__.keys()
