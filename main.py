@@ -44,7 +44,7 @@ class HistoryRequest(BaseModel):
 
 
 # проверка наличия векторстора с базой знаний
-bk_path = "База знаний Чат-Бот ЖМ 08.24.pdf"
+bk_path = "База знаний Чат-Бот ЖМ 09.24.pdf"
 
 if not os.path.exists(vec_store_save_path):
     from vectorstore import make_vectorstore

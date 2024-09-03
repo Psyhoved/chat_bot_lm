@@ -20,7 +20,7 @@ from vectorstore import load_vectorstore
 
 load_dotenv()
 
-vec_store_save_path = "FAISS_store_08_24.db"
+vec_store_save_path = "FAISS_store_09_24.db"
 # Определение корневого каталога проекта
 PROJECT_ROOT = Path(__file__).parent.parent.absolute()
 VEC_STORE_LOAD_PATH = Path.joinpath(PROJECT_ROOT, vec_store_save_path)
