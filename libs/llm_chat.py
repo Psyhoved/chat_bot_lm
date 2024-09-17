@@ -3,7 +3,7 @@ import os
 from dotenv import load_dotenv
 from pathlib import Path
 import psycopg
-from langchain_community.chat_models import GigaChat
+from langchain_community.llms.huggingface_hub import HuggingFaceHub
 from openai import RateLimitError
 
 from langchain_core.runnables import RunnableBinding
@@ -24,7 +24,8 @@ vec_store_save_path = "FAISS_store_09_24.db"
 # Определение корневого каталога проекта
 PROJECT_ROOT = Path(__file__).parent.parent.absolute()
 VEC_STORE_LOAD_PATH = Path.joinpath(PROJECT_ROOT, vec_store_save_path)
-GIGACHAT_KEY = os.environ.get('GIGACHAT_KEY')
+OPENAI_KEY_ = os.environ.get('OPENAI_KEY_')
+HF_KEY = os.environ.get('HF_KEY')
 API_KEY = os.environ.get("OPEN_ROUTER_KEY")
 API_KEY2 = os.environ.get("OPEN_ROUTER_KEY_2")
 API_BASE = "https://openrouter.ai/api/v1"
@@ -48,8 +49,9 @@ openchat = "openchat/openchat-7b:free"
 phi3 = "microsoft/phi-3-medium-128k-instruct:free"
 gemma2 = "google/gemma-2-9b-it:free"
 qwen2 = "qwen/qwen-2-7b-instruct:free"
-capybara = "nousresearch/nous-capybara-7b:free"
 mythomist = "gryphe/mythomist-7b:free"
+
+openai = 'gpt-4o-mini'
 
 SYSTEM_PROMT = """Ты - чат-бот Енот, и работаешь в чате сети магазинов хороших продуктов "Жизньмарт",
     твоя функция - стараться ответить на любой вопрос клиента про работу магазинов "Жизьмарт".
@@ -103,14 +105,14 @@ def check_question(message: str) -> str:
 
     # Примерный список матерных слов на русском языке (закройте ушки)
     curse_words = [
-        'хуй', 'пизда', 'ебать', 'ебаный', 'блядь', 'сука', 'пидор', 'гондон', 'мудак', 'сука', 'мразь', 'говно',
+        'хуй', 'хуя', 'пизда', 'ебать', 'ебаный', 'блядь', 'сука', 'пидор', 'гондон', 'мудак', 'сука', 'мразь', 'говно',
         'дерьмо', 'охуел', 'ебанулся', 'дурак', 'заебал'
     ]
 
     # Расширенный список слов для вызова оператора
     operator_words = [
-        'оператор', 'поддержка', 'help', 'support', 'позови', 'assistance', 'customer service', 'саппорт', 'свяжите',
-        'соедините'
+        'оператор', 'оператора', 'поддержка', 'help', 'support', 'позовите', 'позови', 'assistance', 'customer service',
+        'саппорт', 'свяжите', 'соедините', 'роспотребнадзор'
     ]
 
     thanks_words = [
@@ -219,7 +221,7 @@ def define_llm(api_key: str, api_base: str, model: str, max_tokens: int, tempera
     return llm
 
 
-def define_gigachat(api_key: str, model: str, max_tokens: int, temperature: float) -> GigaChat:
+def define_openai(api_key: str, model: str, max_tokens: int, temperature: float) -> ChatOpenAI:
     """
         Определяет и возвращает языковую модель.
 
@@ -233,11 +235,31 @@ def define_gigachat(api_key: str, model: str, max_tokens: int, temperature: floa
         ChatOpenAI: Языковая модель.
     """
 
-    llm = GigaChat(credentials=api_key,
-                   verify_ssl_certs=False,
-                   model=model,
-                   max_tokens=max_tokens,
-                   temperature=temperature)
+    llm = ChatOpenAI(openai_api_key=api_key,
+                     model_name=model,
+                     max_tokens=max_tokens,
+                     temperature=temperature)
+    return llm
+
+
+def define_hf_chat(api_key: str, model: str, max_tokens: int, temperature: float) -> HuggingFaceHub:
+    """
+        Определяет и возвращает языковую модель.
+
+    Args:
+        api_key (str): API ключ для доступа к модели.
+        model (str): Имя модели.
+        max_tokens (int): Максимальное количество токенов для генерации.
+        temperature (float): Температура генерации текста.
+
+    Returns:
+        ChatOpenAI: Языковая модель.
+    """
+    # 'mattshumer/Reflection-Llama-3.1-70B', 'IlyaGusev/saiga_llama3_8b'
+    llm = HuggingFaceHub(repo_id=model,
+                         huggingfacehub_api_token=api_key,
+                         model_kwargs={'temperature': temperature, 'max_length': max_tokens}
+                         )
     return llm
 
 
@@ -271,8 +293,10 @@ def create_chain(vec_store_path: str | Path = VEC_STORE_LOAD_PATH, model: str = 
     Returns:
         RunnableWithMessageHistory: Цепочка обработки запросов с учетом истории чата.
     """
-    if model in ['GigaChat-Pro', 'GigaChat']:
-        llm = define_gigachat(api_key, model, max_tokens, temperature)
+    if model in ['gpt-4o-mini']:
+        llm = define_openai(api_key, model, max_tokens, temperature)
+    elif model in ['mattshumer/Reflection-Llama-3.1-70B', 'IlyaGusev/saiga_llama3_8b']:
+        llm = define_hf_chat(api_key, model, max_tokens, temperature)
     else:
         llm = define_llm(api_key, API_BASE, model, max_tokens, temperature)
 
