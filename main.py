@@ -7,7 +7,7 @@ from pydantic import BaseModel
 from langchain_core.messages import HumanMessage, AIMessage
 
 from libs.llm_chat import (create_chain, check_question, get_session_history, MODEL,
-                           llama_3_1_8b, hermes, openchat, capybara, qwen2, zephyr, phi3, gemma2, mythomist,
+                           llama_3_1_8b, hermes, openchat, qwen2, zephyr, phi3, gemma2, mythomist,
                            vec_store_save_path)
 
 description = """
@@ -64,7 +64,6 @@ chain_openchat     = create_chain(model=openchat)
 chain_phi3         = create_chain(model=phi3)
 chain_gemma2       = create_chain(model=gemma2)
 chain_qwen2        = create_chain(model=qwen2)
-chain_capybara     = create_chain(model=capybara)
 chain_mythomist    = create_chain(model=mythomist)
 
 chat_start_answer      = 'Приветствую! Спешим на помощь💚 Какой у Вас вопрос?'
