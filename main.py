@@ -48,16 +48,16 @@ check_and_make_vectorstore(bk_path, vec_store_save_path)
 
 # инициализация чат-ботов
 
-chain = create_chain(model=MODEL)
+# chain = create_chain(model=MODEL)
 
-chain_llama_3_1_8b = create_chain(model=llama_3_1_8b)
-chain_hermes       = create_chain(model=hermes)
-chain_zephyr       = create_chain(model=zephyr)
-chain_openchat     = create_chain(model=openchat)
-chain_phi3         = create_chain(model=phi3)
-chain_gemma2       = create_chain(model=gemma2)
-chain_qwen2        = create_chain(model=qwen2)
-chain_mythomist    = create_chain(model=mythomist)
+# chain_llama_3_1_8b = create_chain(model=llama_3_1_8b)
+# chain_hermes       = create_chain(model=hermes)
+# chain_zephyr       = create_chain(model=zephyr)
+# chain_openchat     = create_chain(model=openchat)
+# chain_phi3         = create_chain(model=phi3)
+# chain_gemma2       = create_chain(model=gemma2)
+# chain_qwen2        = create_chain(model=qwen2)
+# chain_mythomist    = create_chain(model=mythomist)
 
 chat_start_answer      = 'Приветствую! Спешим на помощь💚 Какой у Вас вопрос?'
 chat_end_answer        = 'Всегда готовы помочь! Желаем Вам всего самого доброго! 💚'

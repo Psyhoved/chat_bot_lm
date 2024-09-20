@@ -30,9 +30,10 @@ HF_KEY = os.environ.get('HF_KEY')
 API_KEY = os.environ.get("OPEN_ROUTER_KEY")
 API_KEY2 = os.environ.get("OPEN_ROUTER_KEY_2")
 API_BASE = "https://openrouter.ai/api/v1"
-MODEL = "mistralai/mistral-7b-instruct:free"
+MODEL = 'gpt-4o-mini'
 MAX_TOKENS = 500
 TEMPERATURE = 0.5
+HISTORY_LIMIT = 6
 
 PSQL_USERNAME = os.environ.get("PSQL_USERNAME")
 PSQL_PASSWORD = os.environ.get("PSQL_PASSWORD")
@@ -52,25 +53,20 @@ gemma2 = "google/gemma-2-9b-it:free"
 qwen2 = "qwen/qwen-2-7b-instruct:free"
 mythomist = "gryphe/mythomist-7b:free"
 
-openai = 'gpt-4o-mini'
 
-SYSTEM_PROMT = """Ты - чат-бот Енот, и работаешь в чате сети магазинов хороших продуктов "Жизньмарт",
+SYSTEM_PROMT = """Ты - чат-бот консультант, и работаешь в чате службы поддержки сети магазинов хороших продуктов "Жизньмарт",
     твоя функция - стараться ответить на любой вопрос клиента про работу магазинов "Жизьмарт".
-    Используй в ответах только русский язык! Не отвечай на английском! 
-    Если вопрос не касается контекста, то вежливо и дружелюбно переведи тему и расскажи про Живчики Жизьмарта.
+    Ты говоришь только на чистом, грамотном русском языке без ошибок!
+    Если вопрос не касается контекста, то вежливо и дружелюбно расскажи про Жизьмарт.
 
     {context}
 
     Используй только этот контекст, чтобы ответить на последний вопрос.
+    Твой ответ должен быть полным и точно соответствовать тому, что написано в context.
     Если ответа нет в контексте, просто позитивно поддержи диалог на тему Жизньмарта!
-    Если клиент поздоровался с тобой, но НЕ ЗАДАЛ вопрос, тогда поздоровайся и спроси, чем ему помочь!
     """
 
-contextualize_q_system_prompt = """Учитывая историю чата и последний вопрос пользователя,
-    который может ссылаться на контекст в истории чата, сформулируй отдельный вопрос,
-    который можно понять без истории чата. НЕ ОТВЕЧАЙ на вопрос, просто переформулируйте его,
-    если необходимо, и в противном случае верните его как есть.
-    """
+contextualize_q_system_prompt = """find the documents closest to the question in meaning"""
 
 
 def create_table(table_name) -> None:
@@ -155,12 +151,13 @@ def check_question(message: str) -> str:
     return message
 
 
-def get_session_history(session_id: str) -> BaseChatMessageHistory:
+def get_session_history(session_id: str, limit: int = 5) -> BaseChatMessageHistory:
     """
     Возвращает историю сообщений для заданной сессии.
 
     Args:
         session_id (str): Идентификатор сессии.
+        limit (int): Количество последних сообщений, которые нужно вернуть (по умолчанию 5).
 
     Returns:
         BaseChatMessageHistory: Объект истории сообщений чата.
@@ -171,8 +168,11 @@ def get_session_history(session_id: str) -> BaseChatMessageHistory:
     #                                   sync_connection=sync_connection)
 
     # на старой либе со строковым session_id
-    return PostgresChatMessageHistory(session_id=session_id,
-                                      connection_string=CONN_STR2BD)
+    # Получаем всю историю для данной сессии
+    history = PostgresChatMessageHistory(session_id=session_id,
+                                         connection_string=CONN_STR2BD)
+
+    return history
 
 
 def get_history_aware_retriever(llm: ChatOpenAI, vec_store_path: str | Path,
@@ -195,7 +195,7 @@ def get_history_aware_retriever(llm: ChatOpenAI, vec_store_path: str | Path,
     contextualize_q_prompt = ChatPromptTemplate.from_messages(
         [
             ("system", contextualize_q_system_prompt),
-            MessagesPlaceholder("chat_history"),
+            # MessagesPlaceholder("chat_history"), включает историю сообщений в запрос к ретриверу
             ("human", "{input}"),
         ]
     )
@@ -284,7 +284,7 @@ def define_promt(system_prompt: str) -> ChatPromptTemplate:
     prompt = ChatPromptTemplate.from_messages(
         [
             ("system", system_prompt),
-            MessagesPlaceholder("chat_history"),
+            MessagesPlaceholder(variable_name="chat_history", n_messages=HISTORY_LIMIT),
             ("human", "{input}"),
         ]
     )
