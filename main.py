@@ -8,7 +8,7 @@ from langchain_core.messages import HumanMessage, AIMessage
 
 from libs.llm_chat import (create_chain, check_question, get_session_history, MODEL,
                            llama_3_1_8b, hermes, openchat, qwen2, zephyr, phi3, gemma2, mythomist,
-                           vec_store_save_path)
+                           vec_store_save_path, bk_path, check_and_make_vectorstore)
 
 description = """
 ## Версии
@@ -44,14 +44,7 @@ class HistoryRequest(BaseModel):
 
 
 # проверка наличия векторстора с базой знаний
-bk_path = "База знаний Чат-Бот ЖМ 09.24.pdf"
-
-if not os.path.exists(vec_store_save_path):
-    from vectorstore import make_vectorstore
-
-    make_vectorstore(bk_path, vec_store_save_path)
-
-del bk_path, vec_store_save_path
+check_and_make_vectorstore(bk_path, vec_store_save_path)
 
 # инициализация чат-ботов
 
