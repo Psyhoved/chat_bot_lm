@@ -21,10 +21,11 @@ from vectorstore import load_vectorstore
 load_dotenv()
 
 vec_store_save_path = "FAISS_store_09_24.db"
+bk_path = "База знаний Чат-Бот ЖМ 09.24.pdf"
 # Определение корневого каталога проекта
 PROJECT_ROOT = Path(__file__).parent.parent.absolute()
 VEC_STORE_LOAD_PATH = Path.joinpath(PROJECT_ROOT, vec_store_save_path)
-OPENAI_KEY_ = os.environ.get('OPENAI_KEY_')
+OPENAI_KEY = os.environ.get('OPENAI_KEY')
 HF_KEY = os.environ.get('HF_KEY')
 API_KEY = os.environ.get("OPEN_ROUTER_KEY")
 API_KEY2 = os.environ.get("OPEN_ROUTER_KEY_2")
@@ -89,6 +90,12 @@ def check_llm(model, question, max_tokens=10, temperature=0.0):
         llm = define_llm(API_KEY2, API_BASE, model, 10, 0.0)
         answer = llm.invoke(question).content
     return answer
+
+
+def check_and_make_vectorstore(path_kb: str, vec_store_load_path):
+    if not os.path.exists(vec_store_load_path):
+        from vectorstore import make_vectorstore
+        make_vectorstore(path_kb, vec_store_load_path)
 
 
 def check_question(message: str) -> str:
@@ -180,6 +187,8 @@ def get_history_aware_retriever(llm: ChatOpenAI, vec_store_path: str | Path,
     Returns:
         HistoryAwareRetriever: Ретривер, который учитывает историю чата.
     """
+    # проверка наличия векторстора с базой знаний
+    check_and_make_vectorstore(bk_path, vec_store_path)
 
     retriever = load_vectorstore(vec_store_path).as_retriever()
 
