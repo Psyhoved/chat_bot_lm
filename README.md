@@ -5,3 +5,25 @@
 Используется сплитер базы знаний на чанки по символу
 
 Основы в [блокноте](https://colab.research.google.com/drive/1yLOW4CT_CCsrBUzIbs74uT4avTwvKxA5?usp=sharing)
+
+## Команды для запуска докера на сервере
+
+### 1. Остановка и удаление прошлых контейнеров и образов (следить за переполнением памяти в докере)
+
+sudo docker stop old_container_name
+
+sudo docker container prune -f
+
+sudo docker image prune -a -f
+
+### 2. Сборка нового образа 
+
+sudo docker build -t chat_bot_september_im .
+
+### 4. Запуск контейнера с новым образом
+
+sudo docker run -d --name chat_bot_september -p 8000:8000 chat_bot_september_im
+
+### 5. Просмотр логов
+
+sudo docker logs chat_bot_september
