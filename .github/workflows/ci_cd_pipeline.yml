@@ -36,7 +36,7 @@ jobs:
         flake8 . --count --exit-zero --max-complexity=10 --max-line-length=127 --statistics
     - name: Set up environment variables
       run: |
-        echo "OPEN_ROUTER_KEY=${{ secrets.OPEN_ROUTER_KEY }}" >> .env
+        echo "OPENAI_KEY=${{ secrets.OPENAI_KEY }}" >> .env
     - name: Test with coverage
       run: |
         coverage run -m pytest
@@ -60,5 +60,5 @@ jobs:
         curl -X POST http://95.217.185.23:80/webhook-endpoint
 
       env:
-        API_KEY: ${{ secrets.OPEN_ROUTER_KEY }}
+        API_KEY: ${{ secrets.OPENAI_KEY }}
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

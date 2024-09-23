@@ -5,6 +5,7 @@ langchain_community==0.2.10
 langchain_core==0.2.30
 langchain_openai==0.1.19
 langchain_huggingface==0.0.3
+langchain-postgres==0.0.9
 sentence_transformers==3.0.1
 pypdf==4.3.1
 pytest==8.3.2
