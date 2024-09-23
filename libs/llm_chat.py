@@ -1,55 +1,79 @@
+import re
+import os
+from dotenv import load_dotenv
+from pathlib import Path
+import psycopg
+
 from langchain_core.runnables import RunnableBinding
 from langchain_openai import ChatOpenAI
 from langchain.chains.combine_documents import create_stuff_documents_chain
 from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
 from langchain.chains import create_retrieval_chain, create_history_aware_retriever
-
 from langchain_core.chat_history import BaseChatMessageHistory
 from langchain_core.runnables.history import RunnableWithMessageHistory
-from langchain_community.chat_message_histories import SQLChatMessageHistory
-
-import re
-import os
-from dotenv import load_dotenv
-from pathlib import Path
-
-from openai import RateLimitError
+from langchain_community.chat_message_histories import PostgresChatMessageHistory
+from langchain_postgres import PostgresChatMessageHistory as Psql
 
 from vectorstore import load_vectorstore
 
 load_dotenv()
 
-vec_store_save_path = "FAISS_store_08_24.db"
+vec_store_save_path = "FAISS_store_09_24.db"
+bk_path = "База знаний Чат-Бот ЖМ 09.24.pdf"
 # Определение корневого каталога проекта
 PROJECT_ROOT = Path(__file__).parent.parent.absolute()
 VEC_STORE_LOAD_PATH = Path.joinpath(PROJECT_ROOT, vec_store_save_path)
-API_KEY = os.environ.get("OPEN_ROUTER_KEY")
-API_KEY2 = os.environ.get("OPEN_ROUTER_KEY_2")
-API_BASE = "https://openrouter.ai/api/v1"
-MODEL = "mistralai/mistral-7b-instruct:free"
+OPENAI_KEY = os.environ.get('OPENAI_KEY')
+HF_KEY = os.environ.get('HF_KEY')
+MODEL = 'gpt-4o-mini'
 MAX_TOKENS = 500
-TEMPERATURE = 0.5
+TEMPERATURE = 1
+HISTORY_LIMIT = 6
 
-# названия моделей
-llama_3_1_8b = "meta-llama/llama-3.1-8b-instruct:free"
-hermes       = "nousresearch/hermes-3-llama-3.1-405b"
-zephyr       = "huggingfaceh4/zephyr-7b-beta:free"
-openchat     = "openchat/openchat-7b:free"
-phi3         = "microsoft/phi-3-medium-128k-instruct:free"
-gemma2       = "google/gemma-2-9b-it:free"
-qwen2        = "qwen/qwen-2-7b-instruct:free"
-capybara     = "nousresearch/nous-capybara-7b:free"
-mythomist    = "gryphe/mythomist-7b:free"
+PSQL_USERNAME = os.environ.get("PSQL_USERNAME")
+PSQL_PASSWORD = os.environ.get("PSQL_PASSWORD")
+PGSQL_HOST = os.environ.get("PGSQL_HOST")
+PGSQL_DATABASE = os.environ.get("PGSQL_DATABASE")
+CONN_STR2BD = f"dbname={PGSQL_DATABASE} user={PSQL_USERNAME} password={PSQL_PASSWORD} host={PGSQL_HOST}"
+TABLE = 'chat_history'
+sync_connection = psycopg.connect(CONN_STR2BD)
+
+
+SYSTEM_PROMT = """Ты - чат-бот консультант, и работаешь в чате службы поддержки сети магазинов хороших продуктов "Жизньмарт",
+    твоя функция - стараться ответить на любой вопрос клиента про работу магазинов "Жизьмарт".
+    Ты говоришь только на чистом, грамотном русском языке без ошибок!
+    Если вопрос не касается контекста, то вежливо и дружелюбно расскажи про Жизьмарт.
+
+    {context}
+
+    Используй только этот контекст, чтобы ответить на последний вопрос.
+    Твой ответ должен быть полным и точно соответствовать тому, что написано в context.
+    Если ответа нет в контексте, просто позитивно поддержи диалог на тему Жизньмарта!
+    """
+
+contextualize_q_system_prompt = """find the documents closest to the question in meaning"""
+
+
+def create_table(table_name) -> None:
+    # запускать только один раз
+    Psql.create_tables(sync_connection, table_name)
+
+
+def drop_table(table_name) -> None:
+    Psql.drop_table(sync_connection, table_name)
 
 
 def check_llm(model, question, max_tokens=10, temperature=0.0):
-    llm = define_llm(API_KEY, API_BASE, model, max_tokens, temperature)
-    try:
-        answer = llm.invoke(question).content
-    except RateLimitError:
-        llm = define_llm(API_KEY2, API_BASE, model, 10, 0.0)
-        answer = llm.invoke(question).content
+    llm = define_openai(OPENAI_KEY, model, max_tokens, temperature)
+    answer = llm.invoke(question).content
+
     return answer
+
+
+def check_and_make_vectorstore(path_kb: str, vec_store_load_path):
+    if not os.path.exists(vec_store_load_path):
+        from vectorstore import make_vectorstore
+        make_vectorstore(path_kb, vec_store_load_path)
 
 
 def check_question(message: str) -> str:
@@ -66,14 +90,14 @@ def check_question(message: str) -> str:
 
     # Примерный список матерных слов на русском языке (закройте ушки)
     curse_words = [
-        'хуй', 'пизда', 'ебать', 'ебаный', 'блядь', 'сука', 'пидор', 'гондон', 'мудак', 'сука', 'мразь', 'говно',
+        'хуй', 'хуя', 'пизда', 'ебать', 'ебаный', 'блядь', 'сука', 'пидор', 'гондон', 'мудак', 'сука', 'мразь', 'говно',
         'дерьмо', 'охуел', 'ебанулся', 'дурак', 'заебал'
     ]
 
     # Расширенный список слов для вызова оператора
     operator_words = [
-        'оператор', 'поддержка', 'help', 'support', 'позови', 'assistance', 'customer service', 'саппорт', 'свяжите',
-        'соедините'
+        'оператор', 'оператора', 'поддержка', 'help', 'support', 'позовите', 'позови', 'assistance', 'customer service',
+        'саппорт', 'свяжите', 'соедините', 'роспотребнадзор'
     ]
 
     thanks_words = [
@@ -109,44 +133,51 @@ def check_question(message: str) -> str:
     return message
 
 
-def get_session_history(session_id: str, conn_str2db: str = "sqlite:///memory.db") -> BaseChatMessageHistory:
+def get_session_history(session_id: str, limit: int = 5) -> BaseChatMessageHistory:
     """
     Возвращает историю сообщений для заданной сессии.
 
     Args:
         session_id (str): Идентификатор сессии.
-        conn_str2db (str, optional): Строка подключения к базе данных. По умолчанию "sqlite:///memory.db".
+        limit (int): Количество последних сообщений, которые нужно вернуть (по умолчанию 5).
 
     Returns:
         BaseChatMessageHistory: Объект истории сообщений чата.
     """
+    # на новой либе с UUID
+    # return PostgresChatMessageHistory(TABLE,
+    #                                   session_id,
+    #                                   sync_connection=sync_connection)
 
-    return SQLChatMessageHistory(session_id, conn_str2db)
+    # на старой либе со строковым session_id
+    # Получаем всю историю для данной сессии
+    history = PostgresChatMessageHistory(session_id=session_id,
+                                         connection_string=CONN_STR2BD)
+
+    return history
 
 
-def get_history_aware_retriever(llm: ChatOpenAI, vec_store_path: str | Path = VEC_STORE_LOAD_PATH) -> RunnableBinding:
+def get_history_aware_retriever(llm: ChatOpenAI, vec_store_path: str | Path,
+                                contextualize_q_system_prompt: str) -> RunnableBinding:
     """
     Создает и возвращает ретривер, учитывающий историю чата.
 
     Args:
         llm (ChatOpenAI): Языковая модель.
         vec_store_path(str): путь к векторному хранилищу базы знаний
+        contextualize_q_system_prompt: промт для работы с  историей сообщений
     Returns:
         HistoryAwareRetriever: Ретривер, который учитывает историю чата.
     """
+    # проверка наличия векторстора с базой знаний
+    check_and_make_vectorstore(bk_path, vec_store_path)
 
     retriever = load_vectorstore(vec_store_path).as_retriever()
-
-    contextualize_q_system_prompt = """Учитывая историю чата и последний вопрос пользователя, \
-    который может ссылаться на контекст в истории чата, сформулируй отдельный вопрос, \
-    который можно понять без истории чата. НЕ ОТВЕЧАЙ на вопрос, просто переформулируйте его, \
-    если необходимо, и в противном случае верните его как есть.
-    """
 
     contextualize_q_prompt = ChatPromptTemplate.from_messages(
         [
             ("system", contextualize_q_system_prompt),
-            MessagesPlaceholder("chat_history"),
+            # MessagesPlaceholder("chat_history"), включает историю сообщений в запрос к ретриверу
             ("human", "{input}"),
         ]
     )
@@ -158,13 +189,12 @@ def get_history_aware_retriever(llm: ChatOpenAI, vec_store_path: str | Path = VE
     return history_aware_retriever
 
 
-def define_llm(api_key: str, api_base: str, model: str, max_tokens: int, temperature: float) -> ChatOpenAI:
+def define_openai(api_key: str, model: str, max_tokens: int, temperature: float) -> ChatOpenAI:
     """
         Определяет и возвращает языковую модель.
 
     Args:
         api_key (str): API ключ для доступа к модели.
-        api_base (str): Базовый URL для доступа к API.
         model (str): Имя модели.
         max_tokens (int): Максимальное количество токенов для генерации.
         temperature (float): Температура генерации текста.
@@ -174,67 +204,48 @@ def define_llm(api_key: str, api_base: str, model: str, max_tokens: int, tempera
     """
 
     llm = ChatOpenAI(openai_api_key=api_key,
-                     openai_api_base=api_base,
                      model_name=model,
                      max_tokens=max_tokens,
                      temperature=temperature)
     return llm
 
 
-def define_promt(no_memory: bool = False) -> ChatPromptTemplate:
+def define_promt(system_prompt: str) -> ChatPromptTemplate:
     """
     Определяет и возвращает системный промт.
-
-    Args:
-        no_memory (bool, optional): Указывает, использовать ли историю сообщений. По умолчанию False.
 
     Returns:
         ChatPromptTemplate: Системный промт.
     """
-    system_prompt = """ Ты - чат-бот Енот, и работаешь в чате сети магазинов хороших продуктов "Жизньмарт",
-    твоя функция - стараться ответить на любой вопрос клиента про работу магазинов "Жизьмарт".
-    Используй в ответах только русский язык! Не отвечай на английском! 
-    Если вопрос не касается контекста, то вежливо и дружелюбно переведи тему и расскажи про Живчики Жизьмарта.
-
-    {context}
-
-    Используй только этот контекст, чтобы ответить на последний вопрос.
-    Если ответа нет в контексте, просто позитивно поддержи диалог на тему Жизньмарта!
-    Если клиент поздоровался с тобой, но НЕ ЗАДАЛ вопрос, тогда поздоровайся и спроси, чем ему помочь!
-    """
     # Если клиент доволен ответом на вопрос, например, говорит "спасибо", скажи "спасибо" и попрощайся.
 
-    if no_memory:
-        prompt = ChatPromptTemplate.from_messages(
-            [
-                ("system", system_prompt),
-                ("human", "{input}"),
-            ]
-        )
-    else:
-        prompt = ChatPromptTemplate.from_messages(
-            [
-                ("system", system_prompt),
-                MessagesPlaceholder("chat_history"),
-                ("human", "{input}"),
-            ]
-        )
+    prompt = ChatPromptTemplate.from_messages(
+        [
+            ("system", system_prompt),
+            MessagesPlaceholder(variable_name="chat_history", n_messages=HISTORY_LIMIT),
+            ("human", "{input}"),
+        ]
+    )
 
     return prompt
 
 
-def create_chain(vec_store_path: str | Path = VEC_STORE_LOAD_PATH, model: str = MODEL) -> RunnableWithMessageHistory:
+def create_chain(vec_store_path: str | Path = VEC_STORE_LOAD_PATH, model: str = MODEL,
+                 api_key: str = OPENAI_KEY, system_prompt: str = SYSTEM_PROMT,
+                 story_prompt: str = contextualize_q_system_prompt,
+                 max_tokens=MAX_TOKENS, temperature=TEMPERATURE) -> RunnableWithMessageHistory:
     """
         Создает и возвращает цепочку обработки запросов с учетом истории чата.
 
     Returns:
         RunnableWithMessageHistory: Цепочка обработки запросов с учетом истории чата.
     """
-    llm = define_llm(API_KEY, API_BASE, model, MAX_TOKENS, TEMPERATURE)
-    prompt = define_promt()
+    llm = define_openai(api_key, model, max_tokens, temperature)
+
+    prompt = define_promt(system_prompt)
 
     doc_chain = create_stuff_documents_chain(llm, prompt)
-    history_aware_retriever = get_history_aware_retriever(llm, vec_store_path)
+    history_aware_retriever = get_history_aware_retriever(llm, vec_store_path, story_prompt)
 
     chain = create_retrieval_chain(history_aware_retriever, doc_chain)
 
@@ -248,22 +259,3 @@ def create_chain(vec_store_path: str | Path = VEC_STORE_LOAD_PATH, model: str = 
     )
 
     return conversational_rag_chain
-
-
-def create_chain_no_memory(vec_store_path: str | Path = VEC_STORE_LOAD_PATH):
-    """
-    Создает и возвращает цепочку обработки запросов без учета истории чата.
-
-    Returns:
-        RetrievalChain: Цепочка обработки запросов без учета истории чата.
-    """
-
-    llm = define_llm(API_KEY, API_BASE, MODEL, MAX_TOKENS, TEMPERATURE)
-    prompt = define_promt(no_memory=True)
-    retriever = load_vectorstore(vec_store_path).as_retriever()
-
-    doc_chain = create_stuff_documents_chain(llm, prompt)
-    # Create a chain
-    chain = create_retrieval_chain(retriever, doc_chain)
-
-    return chain
