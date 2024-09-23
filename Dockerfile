@@ -9,7 +9,7 @@ COPY requirements.txt .
 
 # Install the required packages
 RUN pip install --no-cache-dir -r requirements.txt
-
+RUN pip install "psycopg[binary,pool]"
 # Copy the rest of the application code
 COPY . .
 
