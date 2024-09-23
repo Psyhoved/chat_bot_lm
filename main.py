@@ -1,5 +1,3 @@
-import os
-
 from fastapi import FastAPI, HTTPException
 from fastapi.responses import JSONResponse
 from fastapi.responses import HTMLResponse
@@ -7,10 +5,9 @@ from pydantic import BaseModel
 from langchain_core.messages import HumanMessage, AIMessage
 
 from libs.llm_chat import (create_chain, check_question, get_session_history, MODEL,
-                           llama_3_1_8b, hermes, openchat, qwen2, zephyr, phi3, gemma2, mythomist,
                            vec_store_save_path, bk_path, check_and_make_vectorstore)
-
-description = """
+version = '0.2.0'
+description = f"""
 ## Версии
 ### 0.0.3
 - Добавлено сохранение истории диалогов в базу данных SQLlite.
@@ -24,12 +21,16 @@ description = """
 - Добавлены 9 llm моделей
 - Убрана модель без памяти 
 - Изменён сплитер текста на деление по символам (т.е. вопросам)
+### {version}
+- Переход на GPT4-O mini
+- В vectorestore уходит только последний запрос пользователя
+- В память боту попадают только 3 последних вопроса и ответа 
 """
 
 # Создание экземпляра FastAPI
 app = FastAPI(
     title="Чат-бот API Жизньмарт",
-    version="0.1.0",
+    version=version,
     description=description)
 
 
@@ -46,18 +47,8 @@ class HistoryRequest(BaseModel):
 # проверка наличия векторстора с базой знаний
 check_and_make_vectorstore(bk_path, vec_store_save_path)
 
-# инициализация чат-ботов
-
-# chain = create_chain(model=MODEL)
-
-# chain_llama_3_1_8b = create_chain(model=llama_3_1_8b)
-# chain_hermes       = create_chain(model=hermes)
-# chain_zephyr       = create_chain(model=zephyr)
-# chain_openchat     = create_chain(model=openchat)
-# chain_phi3         = create_chain(model=phi3)
-# chain_gemma2       = create_chain(model=gemma2)
-# chain_qwen2        = create_chain(model=qwen2)
-# chain_mythomist    = create_chain(model=mythomist)
+# инициализация чат-бота
+chain = create_chain()
 
 chat_start_answer      = 'Приветствую! Спешим на помощь💚 Какой у Вас вопрос?'
 chat_end_answer        = 'Всегда готовы помочь! Желаем Вам всего самого доброго! 💚'
@@ -92,8 +83,8 @@ async def serve_frontend():
         return HTMLResponse(content=f"Не удалось загрузить страницу\n Ошибка {e}", status_code=500)
 
 
-@app.post("/ask_mistral_7b")
-async def ask_mistral_7b(request: QuestionRequest):
+@app.post("/ask_bot")
+async def ask_bot(request: QuestionRequest):
     """
     Общение с ботом с учётом истории сообщений с пользователем, модель mistralai/mistral-7b-instruct:free.
     В промт идёт вся прошлая переписка.
@@ -116,223 +107,8 @@ async def ask_mistral_7b(request: QuestionRequest):
         return JSONResponse(content={"response": response_content['answer']})
 
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
-
-
-@app.post("/ask_llama_3_1_8b")
-async def ask_llama_3_1_8b(request: QuestionRequest):
-    """
-    Общение с ботом с учётом истории сообщений с пользователем, модель meta-llama/llama-3.1-8b-instruct:free.
-    В промт идёт вся прошлая переписка.
-
-    :param request:
-
-    :return:
-    """
-    user_id = request.user_id
-    question = check_question(request.question)
-
-    if fast_answer(question):
-        return fast_answer(question)
-
-    # Отправка запроса модели
-    try:
-
-        response_content = chain_llama_3_1_8b.invoke({"input": question}, config={"configurable": {"session_id": user_id}})
-
-        return JSONResponse(content={"response": response_content['answer']})
-
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
-
-
-@app.post("/ask_hermes")
-async def ask_hermes(request: QuestionRequest):
-    """
-    Общение с ботом с учётом истории сообщений с пользователем, модель nousresearch/hermes-3-llama-3.1-405b.
-    В промт идёт вся прошлая переписка.
-
-    :param request:
-
-    :return:
-    """
-    user_id = request.user_id
-    question = check_question(request.question)
-
-    if fast_answer(question):
-        return fast_answer(question)
-
-    # Отправка запроса модели
-    try:
-
-        response_content = chain_hermes.invoke({"input": question}, config={"configurable": {"session_id": user_id}})
-
-        return JSONResponse(content={"response": response_content['answer']})
-
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
-
-
-@app.post("/ask_openchat")
-async def ask_openchat(request: QuestionRequest):
-    """
-    Общение с ботом с учётом истории сообщений с пользователем, модель openchat/openchat-7b:free.
-    В промт идёт вся прошлая переписка.
-
-    :param request:
-
-    :return:
-    """
-    user_id = request.user_id
-    question = check_question(request.question)
-
-    if fast_answer(question):
-        return fast_answer(question)
-
-    # Отправка запроса модели
-    try:
-
-        response_content = chain_openchat.invoke({"input": question}, config={"configurable": {"session_id": user_id}})
-
-        return JSONResponse(content={"response": response_content['answer']})
-
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
-
-
-@app.post("/ask_qwen2")
-async def ask_qwen2(request: QuestionRequest):
-    """
-    Общение с ботом с учётом истории сообщений с пользователем, модель qwen/qwen-2-7b-instruct:free.
-    В промт идёт вся прошлая переписка.
-
-    :param request:
-
-    :return:
-    """
-    user_id = request.user_id
-    question = check_question(request.question)
-
-    if fast_answer(question):
-        return fast_answer(question)
-
-    # Отправка запроса модели
-    try:
-
-        response_content = chain_qwen2.invoke({"input": question}, config={"configurable": {"session_id": user_id}})
-
-        return JSONResponse(content={"response": response_content['answer']})
-
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
-
-
-@app.post("/ask_zephyr")
-async def ask_zephyr(request: QuestionRequest):
-    """
-    Общение с ботом с учётом истории сообщений с пользователем, модель huggingfaceh4/zephyr-7b-beta:free.
-    В промт идёт вся прошлая переписка.
-
-    :param request:
-
-    :return:
-    """
-    user_id = request.user_id
-    question = check_question(request.question)
-
-    if fast_answer(question):
-        return fast_answer(question)
-
-    # Отправка запроса модели
-    try:
-
-        response_content = chain_zephyr.invoke({"input": question}, config={"configurable": {"session_id": user_id}})
-
-        return JSONResponse(content={"response": response_content['answer']})
-
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
-
-
-@app.post("/ask_phi3")
-async def ask_phi3(request: QuestionRequest):
-    """
-    Общение с ботом с учётом истории сообщений с пользователем, модель microsoft/phi-3-medium-128k-instruct:free.
-    В промт идёт вся прошлая переписка.
-
-    :param request:
-
-    :return:
-    """
-    user_id = request.user_id
-    question = check_question(request.question)
-
-    if fast_answer(question):
-        return fast_answer(question)
-
-    # Отправка запроса модели
-    try:
-
-        response_content = chain_phi3.invoke({"input": question}, config={"configurable": {"session_id": user_id}})
-
-        return JSONResponse(content={"response": response_content['answer']})
-
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
-
-
-@app.post("/ask_gemma2")
-async def ask_gemma2(request: QuestionRequest):
-    """
-    Общение с ботом с учётом истории сообщений с пользователем, модель google/gemma-2-9b-it:free.
-    В промт идёт вся прошлая переписка.
-
-    :param request:
-
-    :return:
-    """
-    user_id = request.user_id
-    question = check_question(request.question)
-
-    if fast_answer(question):
-        return fast_answer(question)
-
-    # Отправка запроса модели
-    try:
-
-        response_content = chain_gemma2.invoke({"input": question}, config={"configurable": {"session_id": user_id}})
-
-        return JSONResponse(content={"response": response_content['answer']})
-
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
-
-
-@app.post("/ask_mythomist")
-async def ask_mythomist(request: QuestionRequest):
-    """
-    Общение с ботом с учётом истории сообщений с пользователем, модель gryphe/mythomist-7b:free.
-    В промт идёт вся прошлая переписка.
-
-    :param request:
-
-    :return:
-    """
-    user_id = request.user_id
-    question = check_question(request.question)
-
-    if fast_answer(question):
-        return fast_answer(question)
-
-    # Отправка запроса модели
-    try:
-
-        response_content = chain_mythomist.invoke({"input": question}, config={"configurable": {"session_id": user_id}})
-
-        return JSONResponse(content={"response": response_content['answer']})
-
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        print(e)
+        # raise HTTPException(status_code=500, detail=str(e))
 
 
 @app.post("/get_history")
@@ -349,6 +125,12 @@ async def get_history(request: HistoryRequest):
             messages.append({"AI": message.content})
 
     return JSONResponse(content={'user_id': user_id, "response": messages})
+
+
+# Эндпоинт для получения версии приложения
+@app.get("/version")
+async def get_version():
+    return {"version": version}
 
 
 if __name__ == "__main__":

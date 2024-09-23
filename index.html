@@ -51,36 +51,26 @@
         #send-btn:hover, #get-history-btn:hover {
             background-color: #218838;
         }
-        #model {
-            margin-bottom: 10px;
-            padding: 10px;
-            width: 100%;
-            border: 1px solid #ccc;
-            border-radius: 5px;
+        #app-version {
+            position: absolute;
+            top: 10px;
+            right: 20px;
+            font-weight: bold;
+            color: #555;
         }
     </style>
 </head>
 <body>
+    <div id="app-version">
+        Версия приложения: <span id="version-text">undefined</span>
+    </div>
+
     <div id="chat-box">
         <h2>Чат-бот Жизньмарт</h2>
 
         <!-- Поле для ввода user_id -->
         <label for="user_id">Введите ваш User ID:</label>
         <input type="text" id="user_id" placeholder="User ID">
-
-        <!-- Поле для выбора модели -->
-        <label for="model">Выберите модель:</label>
-        <select id="model">
-            <option value="ask_mistral_7b">Mistral 7B</option>
-            <option value="ask_llama_3_1_8b">LLaMA 3.1 8B</option>
-            <option value="ask_hermes">Hermes 3 LLaMA 3.1</option>
-            <option value="ask_openchat">OpenChat 7B</option>
-            <option value="ask_qwen2">Qwen 2 7B</option>
-            <option value="ask_zephyr">Zephyr 7B</option>
-            <option value="ask_phi3">Phi 3 Medium</option>
-            <option value="ask_gemma2">Gemma 2 9B</option>
-            <option value="ask_mythomist">Mythomist 7B</option>
-        </select>
 
         <!-- Поле для ввода вопроса -->
         <label for="question">Введите ваш вопрос:</label>
@@ -98,10 +88,8 @@
         async function sendMessage() {
             const userIdInput = document.getElementById('user_id');
             const questionInput = document.getElementById('question');
-            const modelSelect = document.getElementById('model');
             const userId = userIdInput.value.trim();
             const question = questionInput.value.trim();
-            const model = modelSelect.value;
 
             if (!userId || !question) {
                 alert('Пожалуйста, введите User ID и вопрос.');
@@ -111,7 +99,7 @@
             addMessageToChat('Человек', question, userId);
 
             try {
-                const response = await fetch(`/${model}`, {
+                const response = await fetch(`/ask_bot`, {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json'
@@ -121,7 +109,7 @@
 
                 if (!response.ok) {
                     // Обработка ошибки с сервера
-                    const errorText = await response.text(); // Получаем текст ошибки с сервера
+                    const errorText = await response.text();
                     throw new Error(errorText || `Ошибка ${response.status}: ${response.statusText}`);
                 }
 
@@ -170,7 +158,6 @@
 
             const messageHeader = document.createElement('div');
             messageHeader.classList.add('message-header');
-            messageHeader.textContent = sender;
             messageHeader.innerHTML = `<strong>${sender}</strong>`;
 
             const messageBody = document.createElement('div');
@@ -183,6 +170,23 @@
             messagesContainer.appendChild(messageDiv);
             messagesContainer.scrollTop = messagesContainer.scrollHeight;
         }
+
+        // Отображение версии приложения
+        async function loadVersion() {
+            try {
+                const response = await fetch('/version');
+                if (response.ok) {
+                    const data = await response.json();
+                    document.getElementById('version-text').textContent = data.version;
+                } else {
+                    console.error('Ошибка при получении версии приложения');
+                }
+            } catch (error) {
+                console.error('Ошибка:', error);
+            }
+        }
+
+        document.addEventListener('DOMContentLoaded', loadVersion);
     </script>
 </body>
 </html>
