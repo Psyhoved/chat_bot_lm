@@ -107,8 +107,7 @@ async def ask_bot(request: QuestionRequest):
         return JSONResponse(content={"response": response_content['answer']})
 
     except Exception as e:
-        print(e)
-        # raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail=str(e))
 
 
 @app.post("/get_history")
