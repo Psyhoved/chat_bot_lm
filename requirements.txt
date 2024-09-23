@@ -15,4 +15,3 @@ pydantic~=2.8.2
 sqlalchemy==2.0.32
 openai==1.35.5
 reportlab==4.2.2
-GigaChat~=0.1.35
