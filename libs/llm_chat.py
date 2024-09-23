@@ -3,8 +3,6 @@ import os
 from dotenv import load_dotenv
 from pathlib import Path
 import psycopg
-from langchain_community.llms.huggingface_hub import HuggingFaceHub
-from openai import RateLimitError
 
 from langchain_core.runnables import RunnableBinding
 from langchain_openai import ChatOpenAI
@@ -27,12 +25,9 @@ PROJECT_ROOT = Path(__file__).parent.parent.absolute()
 VEC_STORE_LOAD_PATH = Path.joinpath(PROJECT_ROOT, vec_store_save_path)
 OPENAI_KEY = os.environ.get('OPENAI_KEY')
 HF_KEY = os.environ.get('HF_KEY')
-API_KEY = os.environ.get("OPEN_ROUTER_KEY")
-API_KEY2 = os.environ.get("OPEN_ROUTER_KEY_2")
-API_BASE = "https://openrouter.ai/api/v1"
 MODEL = 'gpt-4o-mini'
 MAX_TOKENS = 500
-TEMPERATURE = 0.5
+TEMPERATURE = 1
 HISTORY_LIMIT = 6
 
 PSQL_USERNAME = os.environ.get("PSQL_USERNAME")
@@ -42,16 +37,6 @@ PGSQL_DATABASE = os.environ.get("PGSQL_DATABASE")
 CONN_STR2BD = f"dbname={PGSQL_DATABASE} user={PSQL_USERNAME} password={PSQL_PASSWORD} host={PGSQL_HOST}"
 TABLE = 'chat_history'
 sync_connection = psycopg.connect(CONN_STR2BD)
-
-# названия моделей
-llama_3_1_8b = "meta-llama/llama-3.1-8b-instruct:free"
-hermes = "nousresearch/hermes-3-llama-3.1-405b"
-zephyr = "huggingfaceh4/zephyr-7b-beta:free"
-openchat = "openchat/openchat-7b:free"
-phi3 = "microsoft/phi-3-medium-128k-instruct:free"
-gemma2 = "google/gemma-2-9b-it:free"
-qwen2 = "qwen/qwen-2-7b-instruct:free"
-mythomist = "gryphe/mythomist-7b:free"
 
 
 SYSTEM_PROMT = """Ты - чат-бот консультант, и работаешь в чате службы поддержки сети магазинов хороших продуктов "Жизньмарт",
@@ -79,12 +64,9 @@ def drop_table(table_name) -> None:
 
 
 def check_llm(model, question, max_tokens=10, temperature=0.0):
-    llm = define_llm(API_KEY, API_BASE, model, max_tokens, temperature)
-    try:
-        answer = llm.invoke(question).content
-    except RateLimitError:
-        llm = define_llm(API_KEY2, API_BASE, model, 10, 0.0)
-        answer = llm.invoke(question).content
+    llm = define_openai(OPENAI_KEY, model, max_tokens, temperature)
+    answer = llm.invoke(question).content
+
     return answer
 
 
@@ -207,29 +189,6 @@ def get_history_aware_retriever(llm: ChatOpenAI, vec_store_path: str | Path,
     return history_aware_retriever
 
 
-def define_llm(api_key: str, api_base: str, model: str, max_tokens: int, temperature: float) -> ChatOpenAI:
-    """
-        Определяет и возвращает языковую модель.
-
-    Args:
-        api_key (str): API ключ для доступа к модели.
-        api_base (str): Базовый URL для доступа к API.
-        model (str): Имя модели.
-        max_tokens (int): Максимальное количество токенов для генерации.
-        temperature (float): Температура генерации текста.
-
-    Returns:
-        ChatOpenAI: Языковая модель.
-    """
-
-    llm = ChatOpenAI(openai_api_key=api_key,
-                     openai_api_base=api_base,
-                     model_name=model,
-                     max_tokens=max_tokens,
-                     temperature=temperature)
-    return llm
-
-
 def define_openai(api_key: str, model: str, max_tokens: int, temperature: float) -> ChatOpenAI:
     """
         Определяет и возвращает языковую модель.
@@ -248,27 +207,6 @@ def define_openai(api_key: str, model: str, max_tokens: int, temperature: float)
                      model_name=model,
                      max_tokens=max_tokens,
                      temperature=temperature)
-    return llm
-
-
-def define_hf_chat(api_key: str, model: str, max_tokens: int, temperature: float) -> HuggingFaceHub:
-    """
-        Определяет и возвращает языковую модель.
-
-    Args:
-        api_key (str): API ключ для доступа к модели.
-        model (str): Имя модели.
-        max_tokens (int): Максимальное количество токенов для генерации.
-        temperature (float): Температура генерации текста.
-
-    Returns:
-        ChatOpenAI: Языковая модель.
-    """
-    # 'mattshumer/Reflection-Llama-3.1-70B', 'IlyaGusev/saiga_llama3_8b'
-    llm = HuggingFaceHub(repo_id=model,
-                         huggingfacehub_api_token=api_key,
-                         model_kwargs={'temperature': temperature, 'max_length': max_tokens}
-                         )
     return llm
 
 
@@ -293,7 +231,7 @@ def define_promt(system_prompt: str) -> ChatPromptTemplate:
 
 
 def create_chain(vec_store_path: str | Path = VEC_STORE_LOAD_PATH, model: str = MODEL,
-                 api_key: str = API_KEY, system_prompt: str = SYSTEM_PROMT,
+                 api_key: str = OPENAI_KEY, system_prompt: str = SYSTEM_PROMT,
                  story_prompt: str = contextualize_q_system_prompt,
                  max_tokens=MAX_TOKENS, temperature=TEMPERATURE) -> RunnableWithMessageHistory:
     """
@@ -302,12 +240,7 @@ def create_chain(vec_store_path: str | Path = VEC_STORE_LOAD_PATH, model: str = 
     Returns:
         RunnableWithMessageHistory: Цепочка обработки запросов с учетом истории чата.
     """
-    if model in ['gpt-4o-mini']:
-        llm = define_openai(api_key, model, max_tokens, temperature)
-    elif model in ['mattshumer/Reflection-Llama-3.1-70B', 'IlyaGusev/saiga_llama3_8b']:
-        llm = define_hf_chat(api_key, model, max_tokens, temperature)
-    else:
-        llm = define_llm(api_key, API_BASE, model, max_tokens, temperature)
+    llm = define_openai(api_key, model, max_tokens, temperature)
 
     prompt = define_promt(system_prompt)
 

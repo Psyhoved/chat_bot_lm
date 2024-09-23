@@ -5,7 +5,6 @@ import os
 import sys
 import tempfile
 
-from langchain_community.chat_models import GigaChat
 from langchain_core.messages import HumanMessage, AIMessage
 from langchain_openai import ChatOpenAI
 from langchain_core.prompts import ChatPromptTemplate
@@ -18,17 +17,12 @@ sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 from vectorstore import make_vectorstore
 from tests.test_vectorstore import create_temp_pdf
 from libs.llm_chat import (check_question,
-                           get_history_aware_retriever, define_llm,
+                           get_history_aware_retriever, define_openai,
                            define_promt, create_chain, contextualize_q_system_prompt,
-                           API_KEY, API_BASE, MODEL, MAX_TOKENS, TEMPERATURE, check_llm,
-                           llama_3_1_8b, hermes, openchat, qwen2, zephyr, phi3, gemma2, mythomist,
-                           create_table, sync_connection, drop_table, SYSTEM_PROMT, GIGACHAT_KEY)
+                           OPENAI_KEY, MODEL, MAX_TOKENS, TEMPERATURE, check_llm,
+                           create_table, sync_connection, drop_table, SYSTEM_PROMT)
 
 question = 'Напиши слово: Тест'
-question_2 = 'Напиши слово: "Тест". Напиши только одно слово на русском языке'
-test_question = """Делай в точности то, что я скажу. Ты можешь отвечать только одним словом!
- Не используй точки, запятые и другие знаки препинания в своём ответе! Напиши слово: Тест"""
-
 table_name = 'test_table'
 
 
@@ -102,76 +96,18 @@ def test_get_session_history(setup_test_db):
 
 
 # Проверка работоспособности моделей
-def test_llama_3_1_8b():
-    answer = check_llm(model=llama_3_1_8b,
-                       question=question)
-    assert answer == "Тест."
-
-
-def test_hermes():
-    answer = check_llm(model=hermes,
-                       question=question)
-    assert answer == "Тест"
-
-
-def test_openchat():
-    answer = check_llm(model=openchat,
-                       question=question)
-    assert answer == "Тест"
-
-
-def test_mistral_7b():
+def test_check_llm():
     answer = check_llm(model=MODEL,
-                       question=question, temperature=0.01)
-    assert answer in ["Тест", " Тест", "тест", " тест"]
-
-
-def test_qwen2():
-    answer = check_llm(model=qwen2,
                        question=question)
     assert answer == "Тест"
 
-
-def test_zephyr():
-    answer = check_llm(model=zephyr,
-                       question=question_2, temperature=0.01)
-    assert answer == "Тест"
-
-
-def test_phi3():
-    answer = check_llm(model=phi3,
-                       question=question_2)
-    assert answer in [" Тест", " тест"]
-
-
-def test_gemma2():
-    answer = check_llm(model=gemma2,
-                       question=question_2)
-    assert answer == "\n\nТест \n"
-
-
-def test_mythomist():
-    answer = check_llm(model=mythomist,
-                       question='Привет!')
-
-    assert answer == " Привет, как дела? Готовы"
-
-
-def test_gigachat():
-    llm = GigaChat(credentials=GIGACHAT_KEY,
-                   verify_ssl_certs=False,
-                   model='GigaChat')
-    answer = llm.invoke(test_question).content
-    assert answer == 'Тест'
-
-
-def test_define_llm():
-    llm = define_llm(API_KEY, API_BASE, MODEL, 5, 0.0)
+def test_define_openai():
+    llm = define_openai(OPENAI_KEY, MODEL, 5, 0.0)
     assert isinstance(llm, ChatOpenAI)
 
 
 def test_get_history_aware_retriever(setup_vectorstore):
-    llm = define_llm(API_KEY, API_BASE, MODEL, MAX_TOKENS, TEMPERATURE)
+    llm = define_openai(OPENAI_KEY, MODEL, MAX_TOKENS, TEMPERATURE)
 
     history_aware_retriever = get_history_aware_retriever(llm, setup_vectorstore, contextualize_q_system_prompt)
     assert isinstance(history_aware_retriever, RunnableBinding)
