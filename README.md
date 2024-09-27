@@ -1,8 +1,8 @@
 # chat_bot_lm ![Coverage](./coverage.svg)
 ## Приложение с чатботом поддержки сети Жизньмарт, отвечающим пользователю на основе базы знаний ЖМ
-Для работы необходима база знаний в формате pdf в корне проекта
+Для работы необходима база знаний в формате pdf в корне проекта (на сервере обновлять вручную)
 
-Используется сплитер базы знаний на чанки по символу
+Используется сплитер базы знаний на чанки по символу ~
 
 Основы в [блокноте](https://colab.research.google.com/drive/1yLOW4CT_CCsrBUzIbs74uT4avTwvKxA5?usp=sharing)
 
@@ -18,12 +18,12 @@ sudo docker image prune -a -f
 
 ### 2. Сборка нового образа 
 
-sudo docker build -t chat_bot_september_im .
+sudo docker build -t image_name .
 
 ### 4. Запуск контейнера с новым образом
 
-sudo docker run -d --name chat_bot_september -p 8000:8000 chat_bot_september_im
+sudo docker run -d --name container_name -p 8000:8000 image_name
 
 ### 5. Просмотр логов
 
-sudo docker logs chat_bot_september
+sudo docker logs container_name
