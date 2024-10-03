@@ -27,3 +27,6 @@ sudo docker run -d --name container_name -p 8000:8000 image_name
 ### 5. Просмотр логов
 
 sudo docker logs container_name
+
+
+### По всем вопросам можно обращаться к Саше (https://t.me/HardWorkPlayer_2_0)
