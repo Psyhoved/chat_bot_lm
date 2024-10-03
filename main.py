@@ -58,12 +58,12 @@ operator_switch_answer = 'Перевожу на оператора...'
 def fast_answer(question: str):
     if question == 'оператор':
         # добавить перевод на оператора в JSONResponse
-        return JSONResponse(content={"response": operator_switch_answer})
+        return JSONResponse(content={"response": operator_switch_answer, 'operator': 1})
     elif question == 'привет':
-        return JSONResponse(content={"response": chat_start_answer})
+        return JSONResponse(content={"response": chat_start_answer, 'operator': 0})
     elif question == "спасибо":
         # добавить код окончания диалога в JSONResponse
-        return JSONResponse(content={"response": chat_end_answer})
+        return JSONResponse(content={"response": chat_end_answer, 'operator': 0})
     else:
         return None
 
@@ -104,10 +104,12 @@ async def ask_bot(request: QuestionRequest):
 
         response_content = chain.invoke({"input": question}, config={"configurable": {"session_id": user_id}})
 
-        return JSONResponse(content={"response": response_content['answer']})
+        return JSONResponse(content={"response": response_content['answer'], 'operator': 0})
 
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        print(e)
+        return JSONResponse(content={"response": operator_switch_answer, 'operator': 1})
+        # raise HTTPException(status_code=500, detail=str(e))
 
 
 @app.post("/get_history")
