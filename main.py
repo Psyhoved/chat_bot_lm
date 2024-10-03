@@ -4,7 +4,9 @@ from fastapi.responses import HTMLResponse
 from pydantic import BaseModel
 from langchain_core.messages import HumanMessage, AIMessage
 
-from libs.llm_chat import (create_chain, check_question, get_session_history, MODEL,
+from cachetools import TTLCache
+
+from libs.llm_chat import (create_chain, check_question, get_session_history,
                            vec_store_save_path, bk_path, check_and_make_vectorstore)
 version = '0.2.0'
 description = f"""
@@ -54,6 +56,11 @@ chat_start_answer      = 'Приветствую! Спешим на помощь
 chat_end_answer        = 'Всегда готовы помочь! Желаем Вам всего самого доброго! 💚'
 operator_switch_answer = 'Перевожу на оператора...'
 
+# Создаем кэш с неограниченным размером и временем жизни записей 10 минут
+SESSION_TIMEOUT_SECONDS = 10 * 60  # 10 минут
+user_message_count = TTLCache(maxsize=10000, ttl=SESSION_TIMEOUT_SECONDS)
+MAX_MESSAGES_BEFORE_OPERATOR = 5
+
 
 def fast_answer(question: str):
     if question == 'оператор':
@@ -99,12 +106,23 @@ async def ask_bot(request: QuestionRequest):
     if fast_answer(question):
         return fast_answer(question)
 
+    # Увеличиваем счётчик сообщений пользователя
+    count = user_message_count.get(user_id, 0)
+    count += 1
+    user_message_count[user_id] = count
+
+    # Проверяем, если достигнуто 5 сообщений, переводим на оператора
+    if count > MAX_MESSAGES_BEFORE_OPERATOR:
+        # Сбрасываем счётчик
+        user_message_count.pop(user_id, None)
+        return JSONResponse(content={"response": operator_switch_answer, 'operator': 1})
+
     # Отправка запроса модели
     try:
 
         response_content = chain.invoke({"input": question}, config={"configurable": {"session_id": user_id}})
 
-        return JSONResponse(content={"response": response_content['answer'], 'operator': 0})
+        return JSONResponse(content={"response": response_content['answer'].replace('\n', ''), 'operator': 0})
 
     except Exception as e:
         print(e)
