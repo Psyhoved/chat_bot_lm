@@ -11,9 +11,8 @@ from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
 from langchain.chains import create_retrieval_chain, create_history_aware_retriever
 from langchain_core.chat_history import BaseChatMessageHistory
 from langchain_core.runnables.history import RunnableWithMessageHistory
-from langchain_community.chat_message_histories import PostgresChatMessageHistory
-from langchain_postgres import PostgresChatMessageHistory as Psql
 
+from libs.lib import MyPSQLChatMessageHistory
 from vectorstore import load_vectorstore
 
 load_dotenv()
@@ -35,9 +34,8 @@ PSQL_PASSWORD = os.environ.get("PSQL_PASSWORD")
 PGSQL_HOST = os.environ.get("PGSQL_HOST")
 PGSQL_DATABASE = os.environ.get("PGSQL_DATABASE")
 CONN_STR2BD = f"dbname={PGSQL_DATABASE} user={PSQL_USERNAME} password={PSQL_PASSWORD} host={PGSQL_HOST}"
-TABLE = 'chat_history'
 sync_connection = psycopg.connect(CONN_STR2BD)
-
+TABLE = 'chat_bot_history'
 
 SYSTEM_PROMT = """Ты - чат-бот консультант, и работаешь в чате службы поддержки сети магазинов хороших продуктов "Жизньмарт",
     твоя функция - стараться ответить на любой вопрос клиента про работу магазинов "Жизьмарт".
@@ -52,15 +50,6 @@ SYSTEM_PROMT = """Ты - чат-бот консультант, и работае
     """
 
 contextualize_q_system_prompt = """find the documents closest to the question in meaning"""
-
-
-def create_table(table_name) -> None:
-    # запускать только один раз
-    Psql.create_tables(sync_connection, table_name)
-
-
-def drop_table(table_name) -> None:
-    Psql.drop_table(sync_connection, table_name)
 
 
 def check_llm(model, question, max_tokens=10, temperature=0.0):
@@ -133,26 +122,20 @@ def check_question(message: str) -> str:
     return message
 
 
-def get_session_history(session_id: str, limit: int = 5) -> BaseChatMessageHistory:
+def get_session_history(session_id: str) -> BaseChatMessageHistory:
     """
     Возвращает историю сообщений для заданной сессии.
 
     Args:
         session_id (str): Идентификатор сессии.
-        limit (int): Количество последних сообщений, которые нужно вернуть (по умолчанию 5).
 
     Returns:
         BaseChatMessageHistory: Объект истории сообщений чата.
     """
-    # на новой либе с UUID
-    # return PostgresChatMessageHistory(TABLE,
-    #                                   session_id,
-    #                                   sync_connection=sync_connection)
-
-    # на старой либе со строковым session_id
     # Получаем всю историю для данной сессии
-    history = PostgresChatMessageHistory(session_id=session_id,
-                                         connection_string=CONN_STR2BD)
+    history = MyPSQLChatMessageHistory(table_name=TABLE,
+                                       session_id=session_id,
+                                       connection_string=sync_connection)
 
     return history
 

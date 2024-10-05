@@ -9,22 +9,29 @@ from langchain_core.messages import HumanMessage, AIMessage
 from langchain_openai import ChatOpenAI
 from langchain_core.prompts import ChatPromptTemplate
 from langchain_core.runnables.history import RunnableWithMessageHistory
-from langchain_postgres import PostgresChatMessageHistory
 from langchain_core.runnables import RunnableBinding
 
 # Добавьте корневую директорию проекта в sys.path
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 from vectorstore import make_vectorstore
 from tests.test_vectorstore import create_temp_pdf
+from libs.lib import MyPSQLChatMessageHistory
 from libs.llm_chat import (check_question,
                            get_history_aware_retriever, define_openai,
                            define_promt, create_chain, contextualize_q_system_prompt,
                            OPENAI_KEY, MODEL, MAX_TOKENS, TEMPERATURE, check_llm,
-                           create_table, sync_connection, drop_table, SYSTEM_PROMT)
+                           SYSTEM_PROMT, sync_connection)
+
 
 question = 'Напиши слово: Тест'
 table_name = 'test_table'
 
+def create_table(table_name_: str, sync_connection_) -> None:
+    # запускать только один раз
+    MyPSQLChatMessageHistory.create_tables(sync_connection_, table_name_)
+
+def drop_table(table_name_:str, sync_connection_) -> None:
+    MyPSQLChatMessageHistory.drop_table(sync_connection_, table_name_)
 
 @pytest.fixture
 def setup_vectorstore():
@@ -50,14 +57,14 @@ def setup_vectorstore():
 @pytest.fixture(scope="function")
 def setup_test_db():
     # создаём тестовую таблицу
-    create_table(table_name)
+    create_table(table_name, sync_connection)
 
-    session_id = str(uuid.uuid4())
+    session_id = '00001'
 
     # Initialize the chat history manager
-    chat_history = PostgresChatMessageHistory(
-        table_name,
-        session_id,
+    chat_history = MyPSQLChatMessageHistory(
+        table_name=table_name,
+        session_id=session_id,
         sync_connection=sync_connection
     )
 
@@ -70,7 +77,7 @@ def setup_test_db():
     yield chat_history
 
     # удаляем тестовую таблицу
-    drop_table(table_name)
+    drop_table(table_name, sync_connection)
 
 
 def test_check_question():
@@ -83,8 +90,8 @@ def test_check_question():
 def test_get_session_history(setup_test_db):
     chat_history = setup_test_db
 
-    # Проверяем, что объект history является экземпляром PostgresChatMessageHistory
-    assert isinstance(chat_history, PostgresChatMessageHistory)
+    # Проверяем, что объект history является экземпляром MyPSQLChatMessageHistory
+    assert isinstance(chat_history, MyPSQLChatMessageHistory)
     assert chat_history._table_name == table_name
 
     # Получаем сообщения из истории
