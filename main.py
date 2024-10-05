@@ -1,4 +1,4 @@
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI
 from fastapi.responses import JSONResponse
 from fastapi.responses import HTMLResponse
 from pydantic import BaseModel
@@ -8,13 +8,9 @@ from cachetools import TTLCache
 
 from libs.llm_chat import (create_chain, check_question, get_session_history,
                            vec_store_save_path, bk_path, check_and_make_vectorstore)
-version = '0.2.0'
+version = '0.3.0'
 description = f"""
 ## Версии
-### 0.0.3
-- Добавлено сохранение истории диалогов в базу данных SQLlite.
-- Исправлен баг с неадекватным ответом на приветствие
-- Увеличено покрытия кода тестами
 ### 0.0.4
 - Увеличено покрытия кода тестами
 - Настроено базовое ci/cd в github actions
@@ -23,10 +19,13 @@ description = f"""
 - Добавлены 9 llm моделей
 - Убрана модель без памяти 
 - Изменён сплитер текста на деление по символам (т.е. вопросам)
-### {version}
+### 0.2.0
 - Переход на GPT4-O mini
 - В vectorestore уходит только последний запрос пользователя
-- В память боту попадают только 3 последних вопроса и ответа 
+- В память боту попадают только 3 последних вопроса и ответа
+### {version}
+- Переписан поиск по БЗ и истории запросов
+- Добавлен вызов оператора после 5 вопроса гостя и 10 мин таймер для сброса сессии
 """
 
 # Создание экземпляра FastAPI
@@ -127,7 +126,6 @@ async def ask_bot(request: QuestionRequest):
     except Exception as e:
         print(e)
         return JSONResponse(content={"response": operator_switch_answer, 'operator': 1})
-        # raise HTTPException(status_code=500, detail=str(e))
 
 
 @app.post("/get_history")
