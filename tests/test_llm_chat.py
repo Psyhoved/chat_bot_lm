@@ -1,5 +1,5 @@
-import uuid
-
+from fastapi.testclient import TestClient
+from httpx import AsyncClient
 import pytest
 import os
 import sys
@@ -21,6 +21,7 @@ from libs.llm_chat import (check_question,
                            define_promt, create_chain, contextualize_q_system_prompt,
                            OPENAI_KEY, MODEL, MAX_TOKENS, TEMPERATURE, check_llm,
                            SYSTEM_PROMT, sync_connection)
+from main import app
 
 
 question = 'Напиши слово: Тест'
@@ -78,6 +79,26 @@ def setup_test_db():
 
     # удаляем тестовую таблицу
     drop_table(table_name, sync_connection)
+
+# Используем встроенный тест-клиент FastAPI для синхронного тестирования
+client = TestClient(app)
+# Асинхронный тест с httpx
+@pytest.mark.asyncio
+async def test_ask_bot():
+    async with AsyncClient(app=app, base_url="http://test") as ac:
+        # Входные данные для теста
+        data = {"user_id": "00001", "question": "что такое живчики?"}
+
+        # Отправляем POST запрос на эндпоинт /ask_bot
+        response = await ac.post("/ask_bot", json=data)
+
+        # Проверяем, что запрос завершился успешно
+        assert response.status_code == 200
+
+        # Проверяем ответ (сравниваем с ожидаемым результатом)
+        json_response = response.json()
+        assert "живчики" in json_response["response"].lower()
+        assert json_response["operator"] == 0
 
 
 def test_check_question():

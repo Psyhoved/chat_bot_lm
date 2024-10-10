@@ -92,7 +92,7 @@ async def serve_frontend():
 @app.post("/ask_bot")
 async def ask_bot(request: QuestionRequest):
     """
-    Общение с ботом с учётом истории сообщений с пользователем, модель mistralai/mistral-7b-instruct:free.
+    Общение с ботом с учётом истории сообщений с пользователем, модель GPT4-O mini.
     В промт идёт вся прошлая переписка.
 
     :param request:
@@ -124,7 +124,6 @@ async def ask_bot(request: QuestionRequest):
         return JSONResponse(content={"response": response_content['answer'].replace('\n', ''), 'operator': 0})
 
     except Exception as e:
-        print(e)
         return JSONResponse(content={"response": operator_switch_answer, 'operator': 1})
 
 

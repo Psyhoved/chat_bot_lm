@@ -86,7 +86,7 @@ def check_question(message: str) -> str:
     # Расширенный список слов для вызова оператора
     operator_words = [
         'оператор', 'оператора', 'поддержка', 'help', 'support', 'позовите', 'позови', 'assistance', 'customer service',
-        'саппорт', 'свяжите', 'соедините', 'роспотребнадзор'
+        'саппорт', 'свяжите', 'соедините', 'роспотребнадзор', 'сотрудник', 'сотрудника'
     ]
 
     thanks_words = [
@@ -135,7 +135,7 @@ def get_session_history(session_id: str) -> BaseChatMessageHistory:
     # Получаем всю историю для данной сессии
     history = MyPSQLChatMessageHistory(table_name=TABLE,
                                        session_id=session_id,
-                                       connection_string=sync_connection)
+                                       sync_connection=sync_connection)
 
     return history
 
