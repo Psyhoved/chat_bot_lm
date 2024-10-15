@@ -129,7 +129,7 @@ def check_question(message: str) -> str:
     return message
 
 
-def get_session_history(session_id: str) -> BaseChatMessageHistory:
+def get_session_history(session_id: int) -> BaseChatMessageHistory:
     """
     Возвращает историю сообщений для заданной сессии.
 

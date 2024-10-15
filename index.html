@@ -117,7 +117,7 @@
                 addMessageToChat('Чат-бот', JSON.stringify(data.response, null, 2));
             } catch (error) {
                 console.error('Ошибка:', error);
-                addMessageToChat('Чат-бот', 'Произошла ошибка при отправке запроса.');
+                addMessageToChat('Чат-бот', 'Произошла ошибка при отправке запроса: '  + error.message);
             }
 
             questionInput.value = '';
@@ -147,7 +147,7 @@
                 addMessageToChat('Чат-бот', JSON.stringify(data.response, null, 2));
             } catch (error) {
                 console.error('Ошибка:', error);
-                addMessageToChat('Чат-бот', 'Произошла ошибка при запросе истории сообщений.');
+                addMessageToChat('Чат-бот', 'Произошла ошибка при запросе истории сообщений: ' + error.message);
             }
         }
 

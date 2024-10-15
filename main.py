@@ -37,12 +37,12 @@ app = FastAPI(
 
 # Модель данных для запроса
 class QuestionRequest(BaseModel):
-    user_id: str
+    user_id: int
     question: str
 
 
 class HistoryRequest(BaseModel):
-    user_id: str
+    user_id: int
 
 
 # проверка наличия векторстора с базой знаний
@@ -124,7 +124,7 @@ async def ask_bot(request: QuestionRequest):
         return JSONResponse(content={"response": response_content['answer'].replace('\n', ''), 'operator': 0})
 
     except Exception as e:
-        return JSONResponse(content={"response": operator_switch_answer, 'operator': 1})
+        return JSONResponse(content={"response": operator_switch_answer, 'operator': 1, 'error':e})
 
 
 @app.post("/get_history")

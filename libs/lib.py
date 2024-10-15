@@ -39,7 +39,7 @@ class MyPSQLChatMessageHistory(PostgresChatMessageHistory):
     def __init__(
             self,
             table_name: str,
-            session_id: str,
+            session_id: int,
             sync_connection: Optional[psycopg.Connection] = None,
             async_connection: Optional[psycopg.AsyncConnection] = None,
     ) -> None:
